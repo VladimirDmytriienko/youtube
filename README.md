@@ -1,5 +1,19 @@
 # 🎬 YouTube Studio Pro
 
+> ☕ **Creator Vibe-Coding Notice / Дисклеймер від автора:**  
+> 
+> **English:**  
+> This project is 100% **pure vibe coding** made by a creator for fellow creators who want to automate the soul-crushing routine of video editing, montage assembly, and Shorts production! 🚀  
+> If you've ever found yourself awake at 3 AM manually slicing hours of gameplay into 9:16 vertical clips, tweaking blur backgrounds, ducking audio, generating voiceovers, and re-typing tags/descriptions — this tool is your new superpower.  
+> Please don't judge the codebase too harshly through enterprise textbook dogmas: it was built for pure creator flow, high velocity, real content output, and honest fun! If this helps your channel, enjoy it, fork it, and feel free to contribute. PRs, issues, and creative suggestions are more than welcome! 🤝  
+> 
+> **Українська:**  
+> Цей проєкт — 100% **vibe coding** від кріейтора для кріейторів! Створений на чистому натхненні, щоб позбутися рутинної каторги монтажу: автоматична нарізка хайлайтів через AI Director, вертикальний 9:16 монтаж, озвучка, стильні штампи підписки та публікація в 1 клік. Не судіть код суворо — беріть, користуйтеся, автоматизуйте свій продакшн і контриб'ютьте нові фічі! 💛💙  
+> 
+> *Crafted with passion, caffeine, Gemini Multimodal AI, Next.js, and FFmpeg.* ✨
+
+---
+
 **YouTube Studio Pro** is an autonomous, full-cycle AI video workstation and Shorts compilation engine for creators. It transforms long gameplay recordings, streams, and raw footage into high-retention 9:16 YouTube Shorts, complete with multimodal scene breakdown, natural voiceover narration, styled subtitles, and scheduled publishing.
 
 ---
@@ -91,3 +105,14 @@ python run_studio.py
 Open **http://localhost:3000** in your browser.
 
 Drop your raw videos into the `projects/` folder — they will immediately appear in your Library and Studio!
+
+---
+
+## 🤝 Contributing, Ideas & Vibe
+
+Feel free to contribute to **YouTube Studio Pro**:
+- 💡 Have an idea for a new AI Director preset or video outro design? Open an Issue or Discussion!
+- 🐛 Spotted a bug or an FFmpeg edge-case? Submit a PR!
+- ⭐ If this saves you hours of video editing, drop a star and share it with your fellow creator friends.
+
+*Happy vibe coding & viral views!* 🎬🔥
