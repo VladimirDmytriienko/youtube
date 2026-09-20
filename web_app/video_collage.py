@@ -232,6 +232,7 @@ def build_split_screen_video(
     return {
         "success": True,
         "path": norm_path,
+        "output_path": norm_path,
         "filename": os.path.basename(output_path),
         "is_shorts": is_shorts
     }
