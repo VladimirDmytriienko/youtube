@@ -1,0 +1,2312 @@
+<!DOCTYPE html>
+<html lang="uk" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>YouTube Scheduler • Native Mobile & Desktop</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            border: "hsl(var(--border))",
+            input: "hsl(var(--input))",
+            ring: "hsl(var(--ring))",
+            background: "hsl(var(--background))",
+            foreground: "hsl(var(--foreground))",
+            primary: {
+              DEFAULT: "hsl(var(--primary))",
+              foreground: "hsl(var(--primary-foreground))",
+            },
+            secondary: {
+              DEFAULT: "hsl(var(--secondary))",
+              foreground: "hsl(var(--secondary-foreground))",
+            },
+            destructive: {
+              DEFAULT: "hsl(var(--destructive))",
+              foreground: "hsl(var(--destructive-foreground))",
+            },
+            muted: {
+              DEFAULT: "hsl(var(--muted))",
+              foreground: "hsl(var(--muted-foreground))",
+            },
+            accent: {
+              DEFAULT: "hsl(var(--accent))",
+              foreground: "hsl(var(--accent-foreground))",
+            },
+            card: {
+              DEFAULT: "hsl(var(--card))",
+              foreground: "hsl(var(--card-foreground))",
+            },
+          },
+          borderRadius: {
+            xl: "0.875rem",
+            lg: "0.75rem",
+            md: "0.5rem",
+            sm: "0.375rem",
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    :root {
+      --background: 240 10% 98.5%;
+      --foreground: 240 10% 4%;
+      --card: 0 0% 100%;
+      --card-foreground: 240 10% 4%;
+      --primary: 346.8 77.2% 49.8%;
+      --primary-foreground: 0 0% 100%;
+      --secondary: 240 5% 96%;
+      --secondary-foreground: 240 6% 10%;
+      --muted: 240 5% 95%;
+      --muted-foreground: 240 4% 46%;
+      --accent: 240 5% 94%;
+      --accent-foreground: 240 6% 10%;
+      --destructive: 0 84.2% 60.2%;
+      --destructive-foreground: 0 0% 98%;
+      --border: 240 6% 91%;
+      --input: 240 6% 88%;
+      --ring: 346.8 77.2% 49.8%;
+      --radius: 0.75rem;
+    }
+
+    .dark {
+      --background: 240 10% 3.5%;
+      --foreground: 0 0% 98%;
+      --card: 240 10% 5.5%;
+      --card-foreground: 0 0% 98%;
+      --primary: 346.8 77.2% 49.8%;
+      --primary-foreground: 0 0% 100%;
+      --secondary: 240 4% 11%;
+      --secondary-foreground: 0 0% 98%;
+      --muted: 240 4% 11%;
+      --muted-foreground: 240 5% 65%;
+      --accent: 240 4% 13%;
+      --accent-foreground: 0 0% 98%;
+      --destructive: 0 62.8% 30.6%;
+      --destructive-foreground: 0 0% 98%;
+      --border: 240 4% 14%;
+      --input: 240 4% 18%;
+      --ring: 346.8 77.2% 49.8%;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      max-width: 100vw;
+      overflow-x: hidden;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: hsl(var(--background));
+      color: hsl(var(--foreground));
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      transition: background-color 0.15s ease, color 0.15s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 9999px; }
+
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+    .drawer-overlay { transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
+    .drawer-content { transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+
+    @keyframes toastSlide {
+      from { transform: translateY(12px) scale(0.96); opacity: 0; }
+      to { transform: translateY(0) scale(1); opacity: 1; }
+    }
+    .toast-anim { animation: toastSlide 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+    .safe-bottom {
+      padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
+    }
+
+    @media (max-width: 768px) {
+      input, select, textarea {
+        font-size: 16px !important;
+      }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-primary/20 selection:text-primary pb-24 md:pb-8">
+
+  <!-- TOAST NOTIFICATIONS -->
+  <div id="toast-container" class="fixed bottom-20 md:bottom-5 left-3 right-3 md:left-auto md:right-5 z-[100] flex flex-col space-y-2 max-w-sm ml-auto pointer-events-none"></div>
+
+  <!-- VIDEO PLAYER MODAL (LIGHTBOX) -->
+  <div id="player-modal" class="fixed inset-0 z-[120] bg-black/90 backdrop-blur-md opacity-0 pointer-events-none transition-opacity duration-300 flex items-center justify-center p-3 sm:p-6" onclick="closePlayerModal()">
+    <div class="relative w-full max-w-2xl bg-card rounded-2xl overflow-hidden shadow-2xl border border-border flex flex-col" onclick="event.stopPropagation()">
+      
+      <!-- Modal Top Bar -->
+      <div class="px-4 py-2.5 bg-background/80 backdrop-blur border-b border-border flex items-center justify-between z-10">
+        <div class="flex items-center gap-2 min-w-0">
+          <span id="player-badge" class="text-[9px] font-bold px-1.5 py-0.5 rounded"></span>
+          <p id="player-title" class="text-xs font-semibold text-foreground truncate"></p>
+        </div>
+        <button onclick="closePlayerModal()" class="w-8 h-8 rounded-full bg-secondary hover:bg-accent text-foreground flex items-center justify-center transition">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Player Canvas -->
+      <div id="player-video-box" class="w-full flex items-center justify-center bg-black relative">
+        <video id="main-video-player" controls playsinline class="max-h-[68vh] object-contain rounded-md bg-black">
+          Ваш браузер не підтримує HTML5 відео.
+        </video>
+      </div>
+
+      <!-- Modal Bottom Bar -->
+      <div class="p-3 bg-card border-t border-border flex items-center justify-between gap-2">
+        <div class="text-[11px] text-muted-foreground truncate" id="player-meta-info"></div>
+        <button id="player-schedule-btn" class="h-8 px-3 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold flex items-center gap-1.5 shrink-0 transition shadow-sm">
+          <i data-lucide="calendar-plus" class="w-3.5 h-3.5"></i>
+          <span data-i18n="player.scheduleBtn">Запланувати</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTTOM SHEET (MOBILE) / SLIDE-OVER DRAWER (DESKTOP) -->
+  <div id="drawer-backdrop" class="drawer-overlay fixed inset-0 z-50 bg-black/60 backdrop-blur-sm opacity-0 pointer-events-none" onclick="closeDrawer()"></div>
+  <aside id="drawer-panel" class="drawer-content fixed z-50 bg-card border-border shadow-2xl flex flex-col
+    inset-x-0 bottom-0 max-h-[90vh] rounded-t-2xl border-t translate-y-full w-full
+    md:inset-y-0 md:left-auto md:right-0 md:w-full md:max-w-md md:rounded-none md:border-l md:border-t-0 md:translate-y-0 md:translate-x-full">
+    
+    <div class="md:hidden w-full flex justify-center pt-2.5 pb-1 cursor-grab">
+      <div class="w-10 h-1.5 rounded-full bg-muted-foreground/30"></div>
+    </div>
+
+    <!-- Header -->
+    <div class="px-4 py-3 border-b border-border flex items-center justify-between shrink-0">
+      <div class="flex items-center gap-2">
+        <div class="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+          <i data-lucide="calendar-plus" class="w-4 h-4"></i>
+        </div>
+        <div>
+          <h3 class="text-sm font-semibold tracking-tight text-foreground" data-i18n="drawer.title">Налаштування відео</h3>
+          <p class="text-[11px] text-muted-foreground" data-i18n="drawer.subtitle">Плеєр, зміна статусу або автопостинг</p>
+        </div>
+      </div>
+      <button onclick="closeDrawer()" class="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary flex items-center justify-center transition">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+
+    <!-- Scrollable Form -->
+    <div class="flex-1 overflow-y-auto px-4 py-3 space-y-3.5">
+      <div>
+        <label class="text-xs font-medium text-foreground block mb-1" data-i18n="drawer.sourceLabel">Відеофайл з локальної папки:</label>
+        <select id="drawer-video-select" onchange="onDrawerVideoChanged()" class="w-full h-10 rounded-lg border border-input bg-background px-3 text-xs focus:ring-1 focus:ring-primary outline-none font-mono">
+          <option value="">Оберіть відео зі списку...</option>
+        </select>
+      </div>
+
+      <!-- Preview Card with Instant Play Button -->
+      <div id="drawer-preview-card" class="hidden rounded-xl border border-border bg-secondary/30 p-2.5 flex items-center gap-3">
+        <div class="relative w-16 aspect-video rounded-md overflow-hidden bg-black shrink-0 group/play cursor-pointer" onclick="openDrawerVideoInPlayer()">
+          <img id="drawer-thumb" class="w-full h-full object-cover">
+          <div class="absolute inset-0 bg-black/40 flex items-center justify-center group-hover/play:bg-black/20 transition">
+            <div class="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center shadow">
+              <i data-lucide="play" class="w-3 h-3 fill-white ml-0.5"></i>
+            </div>
+          </div>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-1.5 mb-0.5">
+            <span id="drawer-badge-type" class="text-[9px] font-bold px-1.5 py-0.2 rounded"></span>
+            <span id="drawer-resolution" class="text-[10px] text-muted-foreground font-mono"></span>
+          </div>
+          <p id="drawer-filename" class="text-xs font-semibold text-foreground truncate"></p>
+          <div class="flex items-center justify-between text-[10px] text-muted-foreground mt-0.5">
+            <span id="drawer-duration"></span>
+            <button onclick="openDrawerVideoInPlayer()" class="text-primary hover:underline font-medium inline-flex items-center gap-0.5">
+              <span>Дивитися</span> ▶
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Manual Status Selector (SQLite) -->
+      <div class="rounded-xl border border-border bg-secondary/20 p-3 space-y-1.5">
+        <label class="text-xs font-semibold text-foreground flex items-center gap-1.5">
+          <i data-lucide="check-circle" class="w-3.5 h-3.5 text-primary"></i> <span data-i18n="drawer.statusLabel">Статус у базі даних:</span>
+        </label>
+        <select id="drawer-manual-status" class="w-full h-10 rounded-lg border border-input bg-background px-3 text-xs font-medium focus:ring-1 focus:ring-primary outline-none">
+          <option value="planning">⏳ В планах (Planning)</option>
+          <option value="scheduled">🕒 Заплановано (Scheduled)</option>
+          <option value="posted">✅ Запощено / Опубліковано (Posted)</option>
+        </select>
+        <p class="text-[10px] text-muted-foreground" data-i18n="drawer.statusHint">💡 Можна змінити статус вручну без автопостингу</p>
+      </div>
+
+      <!-- Title -->
+      <div>
+        <div class="flex items-center justify-between mb-1">
+          <label class="text-xs font-medium text-foreground" data-i18n="drawer.titleLabel">Назва на YouTube:</label>
+          <span class="text-[10px] text-muted-foreground font-mono" id="drawer-title-chars">0 / 100</span>
+        </div>
+        <input type="text" id="drawer-title" oninput="document.getElementById('drawer-title-chars').innerText = this.value.length + ' / 100'" placeholder="Назва ролика..." class="w-full h-10 rounded-lg border border-input bg-background px-3 text-xs focus:ring-1 focus:ring-primary outline-none">
+        <div id="drawer-title-pills" class="flex flex-wrap gap-1.5 mt-2"></div>
+      </div>
+
+      <!-- Description -->
+      <div>
+        <label class="text-xs font-medium text-foreground block mb-1" data-i18n="drawer.descLabel">Опис:</label>
+        <textarea id="drawer-description" rows="2" placeholder="Опис відео, хештеги..." class="w-full rounded-lg border border-input bg-background p-2.5 text-xs leading-relaxed focus:ring-1 focus:ring-primary outline-none"></textarea>
+      </div>
+
+      <!-- Tags -->
+      <div>
+        <label class="text-xs font-medium text-foreground block mb-1" data-i18n="drawer.tagsLabel">Теги (через кому):</label>
+        <input type="text" id="drawer-tags" placeholder="shorts, highlights, viral, trending" class="w-full h-10 rounded-lg border border-input bg-background px-3 text-xs focus:ring-1 focus:ring-primary outline-none">
+      </div>
+
+      <!-- Schedule Time & YouTube Privacy Settings -->
+      <div class="rounded-xl border border-border bg-secondary/30 p-3 space-y-2.5">
+        <div>
+          <label class="text-xs font-medium text-foreground block mb-1" data-i18n="drawer.privacyLabel">Режим публікації в YouTube:</label>
+          <select id="drawer-privacy" onchange="toggleDrawerScheduleDate()" class="w-full h-10 rounded-lg border border-input bg-background px-3 text-xs focus:ring-1 focus:ring-primary outline-none">
+            <option value="scheduled" selected>🕒 Запланована публікація (Scheduled)</option>
+            <option value="private">🔒 Приватне (Private)</option>
+            <option value="unlisted">🔗 Доступ за посиланням (Unlisted)</option>
+            <option value="public">🌐 Публічне відразу (Public)</option>
+          </select>
+        </div>
+
+        <div id="drawer-datetime-box">
+          <label class="text-xs font-medium text-foreground block mb-1" data-i18n="drawer.dateLabel">Дата та точний час публікації:</label>
+          <input type="datetime-local" id="drawer-datetime" class="w-full h-10 rounded-lg border border-input bg-background px-3 text-xs focus:ring-1 focus:ring-primary outline-none text-foreground">
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="px-4 py-3 border-t border-border bg-card/95 backdrop-blur flex items-center justify-between gap-2 shrink-0">
+      <button onclick="saveManualStatusOnly()" id="btn-drawer-manual-save" class="h-9 px-3 rounded-lg border border-border bg-secondary hover:bg-accent text-foreground text-xs font-medium flex items-center gap-1.5 transition" title="Зберегти тільки в локальну базу даних">
+        <i data-lucide="save" class="w-3.5 h-3.5 text-emerald-500"></i>
+        <span data-i18n="drawer.saveStatusBtn">Зберегти статус</span>
+      </button>
+
+      <button onclick="submitSchedule()" id="btn-drawer-submit" class="h-9 px-3.5 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold flex items-center gap-1.5 shadow-sm transition">
+        <i data-lucide="cloud-upload" class="w-3.5 h-3.5"></i>
+        <span data-i18n="drawer.submitBtn">В YouTube ↗</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- TOP APP BAR -->
+  <header class="sticky top-0 z-30 border-b border-border bg-background/90 backdrop-blur-md px-3.5 sm:px-6 py-2.5 flex items-center justify-between w-full max-w-full">
+    <div class="flex items-center space-x-2 min-w-0">
+      <div class="h-8 w-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground shadow-sm shrink-0">
+        <i data-lucide="youtube" class="w-4 h-4"></i>
+      </div>
+      <div class="min-w-0">
+        <span class="text-sm font-bold tracking-tight truncate block">YouTube Scheduler</span>
+      </div>
+    </div>
+
+    <!-- DESKTOP NAVIGATION TABS -->
+    <nav class="hidden md:inline-flex h-9 items-center justify-center rounded-lg bg-secondary p-1 text-muted-foreground">
+      <button onclick="switchTab('calendar')" id="tab-btn-calendar" class="tab-btn inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium transition bg-card text-foreground shadow-sm">
+        <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
+        <span data-i18n="nav.calendar">Розклад</span>
+      </button>
+      <button onclick="switchTab('library')" id="tab-btn-library" class="tab-btn inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium transition hover:text-foreground">
+        <i data-lucide="layout-grid" class="w-3.5 h-3.5"></i>
+        <span data-i18n="nav.library">Медіатека</span>
+      </button>
+      <button onclick="switchTab('converter')" id="tab-btn-converter" class="tab-btn inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium transition hover:text-foreground">
+        <i data-lucide="wand-2" class="w-3.5 h-3.5 text-rose-500"></i>
+        <span data-i18n="nav.converter">⚡ Shorts Студія</span>
+      </button>
+      <button onclick="switchTab('history')" id="tab-btn-history" class="tab-btn inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium transition hover:text-foreground">
+        <i data-lucide="history" class="w-3.5 h-3.5"></i>
+        <span data-i18n="nav.history">Історія</span>
+      </button>
+    </nav>
+
+    <!-- RIGHT TOOLS -->
+    <div class="flex items-center space-x-1.5 shrink-0">
+      <!-- Language Switcher -->
+      <button onclick="toggleLanguage()" class="h-8 px-2 rounded-lg text-xs font-semibold bg-secondary hover:bg-accent text-foreground flex items-center gap-1 border border-border/60 transition" id="lang-btn" title="Змінити мову / Change language">
+        <span id="lang-flag">🇺🇦</span>
+        <span id="lang-code" class="font-mono text-[11px]">UA</span>
+      </button>
+
+      <button onclick="toggleTheme()" class="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary flex items-center justify-center transition" title="Перемкнути тему">
+        <i data-lucide="sun" class="w-4 h-4 hidden text-amber-500" id="sun-icon"></i>
+        <i data-lucide="moon" class="w-4 h-4" id="moon-icon"></i>
+      </button>
+
+      <button onclick="loadData(true)" class="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary flex items-center justify-center transition" title="Оновити файли">
+        <i data-lucide="rotate-cw" class="w-4 h-4" id="refresh-icon"></i>
+      </button>
+
+      <div id="auth-box" class="shrink-0">
+        <div class="h-8 px-2 rounded-lg bg-secondary text-[11px] text-muted-foreground flex items-center gap-1.5">
+          <div class="h-1.5 w-1.5 rounded-full bg-muted-foreground animate-pulse"></div>
+          <span class="hidden sm:inline">Google...</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN VIEWPORT -->
+  <main class="flex-1 max-w-4xl w-full mx-auto p-3.5 sm:p-6 space-y-4">
+
+    <!-- ==================== TAB 1: CALENDAR (AGENDA + WEEK STRIP) ==================== -->
+    <section id="tab-calendar" class="space-y-4">
+      
+      <!-- Date Strip -->
+      <div class="space-y-1.5">
+        <div class="flex items-center justify-between px-0.5">
+          <span class="text-xs font-bold uppercase tracking-wider text-muted-foreground">Дні публікацій</span>
+          <span id="calendar-active-month" class="text-xs font-semibold text-foreground">Вересень 2026</span>
+        </div>
+
+        <div id="week-strip-container" class="flex gap-2 overflow-x-auto no-scrollbar py-1 px-0.5 -mx-1">
+          <!-- Injected via JS -->
+        </div>
+      </div>
+
+      <!-- Selected Day Content Card -->
+      <div class="rounded-2xl border border-border bg-card p-4 space-y-3.5 shadow-sm">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2 min-w-0">
+            <div class="w-2 h-2 rounded-full bg-primary shrink-0"></div>
+            <h3 id="selected-day-title" class="text-sm font-bold text-foreground truncate">Сьогодні, 9 вересня</h3>
+          </div>
+          <button onclick="openDrawerForSelectedDate()" class="h-8 px-3 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold flex items-center gap-1 shadow-sm shrink-0 transition">
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+            <span>Пост</span>
+          </button>
+        </div>
+
+        <div id="selected-day-posts" class="space-y-2.5">
+          <!-- Injected via JS -->
+        </div>
+      </div>
+
+      <!-- Upcoming Agenda -->
+      <div class="space-y-2 pt-2">
+        <h4 class="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1" data-i18n="calendar.allPlannedVideos">Всі заплановані та опубліковані ролики</h4>
+        <div id="upcoming-agenda-list" class="space-y-2">
+          <!-- Injected via JS -->
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ==================== TAB 2: MEDIA LIBRARY ==================== -->
+    <section id="tab-library" class="hidden space-y-3.5">
+      <!-- Filter Chips -->
+      <div class="flex items-center space-x-1.5 overflow-x-auto no-scrollbar py-0.5">
+        <button onclick="filterVideos('all')" id="filter-all" class="h-8 px-3 rounded-lg text-xs font-medium bg-secondary text-foreground shrink-0 transition">
+          <span data-i18n="status.all">Всі</span> (<span id="count-all">0</span>)
+        </button>
+        <button onclick="filterVideos('planning')" id="filter-planning" class="h-8 px-2.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground shrink-0 transition">
+          <span data-i18n="status.planning">⏳ В планах</span> (<span id="count-planning">0</span>)
+        </button>
+        <button onclick="filterVideos('scheduled')" id="filter-scheduled" class="h-8 px-2.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground shrink-0 transition">
+          <span data-i18n="status.scheduled">🕒 Заплановані</span> (<span id="count-scheduled">0</span>)
+        </button>
+        <button onclick="filterVideos('posted')" id="filter-posted" class="h-8 px-2.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground shrink-0 transition">
+          <span data-i18n="status.posted">✅ Запощені</span> (<span id="count-posted">0</span>)
+        </button>
+        <button onclick="filterVideos('shorts')" id="filter-shorts" class="h-8 px-2.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground shrink-0 transition">
+          ⚡ Shorts (<span id="count-shorts">0</span>)
+        </button>
+      </div>
+
+      <!-- Shorts Section (Vertical 9:16 Cards) -->
+      <div id="shorts-section" class="space-y-2.5">
+        <div class="flex items-center justify-between px-0.5">
+          <span class="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+            <i data-lucide="zap" class="w-3.5 h-3.5 text-rose-500"></i> YouTube Shorts
+          </span>
+          <span class="text-[11px] text-muted-foreground font-mono" data-i18n="library.clickPreview">Клікніть прев'ю для перегляду</span>
+        </div>
+        
+        <div id="shorts-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
+          <!-- Injected via JS -->
+        </div>
+      </div>
+
+      <!-- Regular Videos Section (Horizontal 16:9 Cards) -->
+      <div id="regular-section" class="space-y-2.5 pt-2 border-t border-border/60">
+        <div class="flex items-center justify-between px-0.5">
+          <span class="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+            <i data-lucide="film" class="w-3.5 h-3.5 text-sky-500"></i> <span data-i18n="library.regularTitle">Звичайні Відео (16:9)</span>
+          </span>
+        </div>
+        
+        <div id="regular-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+          <!-- Injected via JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB: SHORTS CONVERTER (16:9 -> 9:16) ==================== -->
+    <section id="tab-converter" class="hidden space-y-4">
+      <div class="px-0.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+        <div>
+          <div class="flex items-center gap-1.5">
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/15 text-rose-500 border border-rose-500/20">
+              ⚡ FFmpeg Studio
+            </span>
+            <h2 class="text-sm sm:text-base font-bold tracking-tight text-foreground" data-i18n="converter.title">Конвертер у Shorts (16:9 → 9:16)</h2>
+          </div>
+          <p class="text-xs text-muted-foreground mt-0.5" data-i18n="converter.subtitle">Розмитий динамічний фон, настроюваний зум, точне позиціонування та автообрізка до 60 сек</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+        
+        <!-- LEFT COLUMN: CONTROLS & SETTINGS (7 COLS) -->
+        <div class="lg:col-span-7 space-y-3.5">
+          
+          <!-- 1. Video Selector -->
+          <div class="rounded-xl border border-border bg-card p-3.5 space-y-2">
+            <label class="text-xs font-semibold text-foreground flex items-center gap-1.5">
+              <i data-lucide="film" class="w-3.5 h-3.5 text-sky-500"></i>
+              <span data-i18n="converter.sourceLabel">Вихідне альбомне відео (16:9):</span>
+            </label>
+            <select id="converter-source-select" onchange="onConverterSourceChanged()" class="w-full h-10 rounded-lg border border-input bg-background px-3 text-xs font-medium focus:ring-1 focus:ring-primary outline-none">
+              <option value="">Оберіть альбомне відео зі списку...</option>
+            </select>
+            <div id="converter-source-meta" class="text-[11px] text-muted-foreground flex items-center justify-between pt-1 border-t border-border/50 hidden">
+              <span id="converter-source-res" class="font-mono"></span>
+              <span id="converter-source-dur" class="font-mono font-medium text-foreground"></span>
+            </div>
+          </div>
+
+          <!-- 2. Timing & Trimming -->
+          <div class="rounded-xl border border-border bg-card p-3.5 space-y-3">
+            <div class="flex items-center justify-between">
+              <label class="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                <i data-lucide="clock" class="w-3.5 h-3.5 text-amber-500"></i>
+                <span data-i18n="converter.timingLabel">Таймінг уривка (Shorts max 60с):</span>
+              </label>
+              <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-secondary text-muted-foreground" id="converter-time-badge">0:00 - 0:30 (30с)</span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-[11px] text-muted-foreground block mb-1" data-i18n="converter.startLabel">Початок (сек):</label>
+                <input type="number" id="converter-start-time" value="0" min="0" step="1" oninput="updateLivePreview()" class="w-full h-9 rounded-lg border border-input bg-background px-2.5 text-xs font-mono focus:ring-1 focus:ring-primary outline-none">
+              </div>
+              <div>
+                <div class="flex items-center justify-between mb-1">
+                  <label class="text-[11px] text-muted-foreground" data-i18n="converter.durationLabel">Тривалість:</label>
+                  <span id="converter-duration-val" class="text-[11px] font-mono font-bold text-foreground">30с</span>
+                </div>
+                <input type="range" id="converter-duration-range" min="5" max="60" value="30" oninput="document.getElementById('converter-duration-val').innerText = this.value + 'с'; updateLivePreview()" class="w-full accent-primary h-2 bg-secondary rounded-lg cursor-pointer">
+              </div>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-1.5 pt-1">
+              <span class="text-[10px] text-muted-foreground" data-i18n="converter.quickPresets">Швидкий вибір:</span>
+              <button type="button" onclick="setConverterDuration(15)" class="preset-btn text-[10px] px-2 py-0.5 rounded-md bg-secondary hover:bg-accent text-foreground transition" data-sec="15">15с</button>
+              <button type="button" onclick="setConverterDuration(30)" class="preset-btn text-[10px] px-2 py-0.5 rounded-md bg-secondary hover:bg-accent text-foreground transition" data-sec="30">30с</button>
+              <button type="button" onclick="setConverterDuration(45)" class="preset-btn text-[10px] px-2 py-0.5 rounded-md bg-secondary hover:bg-accent text-foreground transition" data-sec="45">45с</button>
+              <button type="button" onclick="setConverterDuration(60)" class="preset-btn text-[10px] px-2 py-0.5 rounded-md bg-secondary hover:bg-accent text-foreground transition" data-sec="60">60с</button>
+            </div>
+          </div>
+
+          <!-- 3. Scale / Zoom -->
+          <div class="rounded-xl border border-border bg-card p-3.5 space-y-2.5">
+            <div class="flex items-center justify-between">
+              <label class="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                <i data-lucide="maximize-2" class="w-3.5 h-3.5 text-emerald-500"></i>
+                <span data-i18n="converter.scaleLabel">Масштаб головного відео (Zoom):</span>
+              </label>
+              <span id="converter-zoom-val" class="text-xs font-mono font-bold text-primary">115%</span>
+            </div>
+            
+            <input type="range" id="converter-zoom-range" min="100" max="150" value="115" oninput="onConverterZoomChange(this.value)" class="w-full accent-primary h-2 bg-secondary rounded-lg cursor-pointer">
+            
+            <div class="flex items-center justify-between text-[10px] text-muted-foreground">
+              <span data-i18n="converter.zoom100">100% (Без обрізки)</span>
+              <span data-i18n="converter.zoom115">115% (Рекомендовано)</span>
+              <span data-i18n="converter.zoom150">150% (Макс зум)</span>
+            </div>
+          </div>
+
+          <!-- 4. Vertical Position -->
+          <div class="rounded-xl border border-border bg-card p-3.5 space-y-2.5">
+            <div class="flex items-center justify-between">
+              <label class="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                <i data-lucide="move-vertical" class="w-3.5 h-3.5 text-indigo-500"></i>
+                <span data-i18n="converter.posLabel">Вертикальне положення (Y-позиція):</span>
+              </label>
+              <span id="converter-pos-val" class="text-xs font-mono font-semibold text-foreground">По центру (50%)</span>
+            </div>
+
+            <div class="grid grid-cols-3 gap-2">
+              <button type="button" id="pos-btn-top" onclick="setConverterPosition(0.2)" class="h-8 rounded-lg border border-border bg-secondary hover:bg-accent text-xs font-medium text-foreground transition flex items-center justify-center gap-1" data-i18n="converter.posTop">
+                Зверху
+              </button>
+              <button type="button" id="pos-btn-center" onclick="setConverterPosition(0.5)" class="h-8 rounded-lg border border-primary/50 bg-primary/10 text-primary text-xs font-semibold transition flex items-center justify-center gap-1" data-i18n="converter.posCenter">
+                Центр
+              </button>
+              <button type="button" id="pos-btn-bottom" onclick="setConverterPosition(0.8)" class="h-8 rounded-lg border border-border bg-secondary hover:bg-accent text-xs font-medium text-foreground transition flex items-center justify-center gap-1" data-i18n="converter.posBottom">
+                Знизу
+              </button>
+            </div>
+
+            <input type="range" id="converter-pos-range" min="0" max="100" value="50" oninput="onConverterPosRangeChange(this.value)" class="w-full accent-primary h-2 bg-secondary rounded-lg cursor-pointer">
+          </div>
+
+          <!-- 5. Background Blur & Dim -->
+          <div class="rounded-xl border border-border bg-card p-3.5 space-y-3">
+            <label class="text-xs font-semibold text-foreground flex items-center gap-1.5">
+              <i data-lucide="sparkles" class="w-3.5 h-3.5 text-purple-500"></i>
+              <span data-i18n="converter.effectsLabel">Ефекти розмитого фону:</span>
+            </label>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-[11px] text-muted-foreground" data-i18n="converter.blurLabel">Сила блюру:</span>
+                  <span id="converter-blur-val" class="text-[11px] font-mono font-bold text-foreground">25px</span>
+                </div>
+                <input type="range" id="converter-blur-range" min="10" max="45" value="25" oninput="document.getElementById('converter-blur-val').innerText = this.value + 'px'; updateLivePreview()" class="w-full accent-primary h-2 bg-secondary rounded-lg cursor-pointer">
+              </div>
+
+              <div>
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-[11px] text-muted-foreground" data-i18n="converter.dimLabel">Затемнення фону:</span>
+                  <span id="converter-dim-val" class="text-[11px] font-mono font-bold text-foreground">20%</span>
+                </div>
+                <input type="range" id="converter-dim-range" min="0" max="50" value="20" oninput="document.getElementById('converter-dim-val').innerText = this.value + '%'; updateLivePreview()" class="w-full accent-primary h-2 bg-secondary rounded-lg cursor-pointer">
+              </div>
+            </div>
+          </div>
+
+          <!-- 6. Target Title -->
+          <div class="rounded-xl border border-border bg-card p-3.5 space-y-1.5">
+            <div class="flex items-center justify-between">
+              <label class="text-xs font-semibold text-foreground" data-i18n="converter.titleLabel">Назва для YouTube Shorts:</label>
+              <span class="text-[10px] text-muted-foreground font-mono" id="converter-title-chars">0 / 100</span>
+            </div>
+            <input type="text" id="converter-title" oninput="document.getElementById('converter-title-chars').innerText = this.value.length + ' / 100'" placeholder="Назва ролика #Shorts..." class="w-full h-10 rounded-lg border border-input bg-background px-3 text-xs focus:ring-1 focus:ring-primary outline-none">
+          </div>
+
+          <!-- 7. Action Button -->
+          <button id="btn-run-convert" onclick="runShortsConversion()" class="w-full h-12 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-primary/25 transition active:scale-[0.99]">
+            <i data-lucide="wand-2" class="w-4 h-4"></i>
+            <span data-i18n="converter.generateBtn">⚡ Згенерувати вертикальний Shorts (FFmpeg)</span>
+          </button>
+        </div>
+
+        <!-- RIGHT COLUMN: LIVE INTERACTIVE PREVIEW (5 COLS) -->
+        <div class="lg:col-span-5 flex flex-col items-center space-y-3">
+          <div class="text-center">
+            <span class="text-xs font-semibold text-foreground flex items-center justify-center gap-1">
+              <i data-lucide="smartphone" class="w-3.5 h-3.5 text-primary"></i> <span data-i18n="converter.previewTitle">Живий макет Shorts (9:16)</span>
+            </span>
+            <p class="text-[11px] text-muted-foreground" data-i18n="converter.previewSubtitle">Прев'ю миттєво реагує на зміну масштабу, позиції та блюру</p>
+          </div>
+
+          <!-- Phone Shell Mockup -->
+          <div class="relative w-full max-w-[270px] sm:max-w-[300px] aspect-[9/16] rounded-3xl p-2 bg-zinc-900 border-4 border-zinc-700 shadow-2xl flex flex-col overflow-hidden ring-1 ring-white/10">
+            
+            <!-- Phone Notch / Island -->
+            <div class="absolute top-3 inset-x-0 flex justify-center z-30 pointer-events-none">
+              <div class="w-24 h-3.5 rounded-full bg-black/90 flex items-center justify-center">
+                <div class="w-2 h-2 rounded-full bg-zinc-800 ml-auto mr-2"></div>
+              </div>
+            </div>
+
+            <!-- Screen Canvas 9:16 -->
+            <div id="preview-viewport" class="relative w-full h-full rounded-2xl overflow-hidden bg-black flex items-center justify-center">
+              
+              <!-- Background Layer (Blurred & Scaled) -->
+              <img id="preview-bg-img" src="" class="absolute inset-0 w-full h-full object-cover select-none pointer-events-none transition-all duration-100" style="filter: blur(25px) brightness(0.8); transform: scale(1.2);">
+              
+              <!-- Foreground Wrapper (Positioned by Y-offset) -->
+              <div id="preview-fg-wrapper" class="absolute inset-x-0 flex items-center justify-center overflow-hidden pointer-events-none transition-all duration-75" style="top: 50%; transform: translateY(-50%);">
+                <!-- Foreground Image (Zoomed) -->
+                <img id="preview-fg-img" src="" class="w-full object-contain select-none transition-transform duration-75 shadow-2xl" style="transform: scale(1.15);">
+              </div>
+
+              <!-- Top Overlay Badge -->
+              <div class="absolute top-6 left-2.5 z-20 pointer-events-none">
+                <span class="inline-flex items-center gap-1 rounded bg-rose-600/90 backdrop-blur px-1.5 py-0.5 text-[8px] font-bold text-white shadow">
+                  <i data-lucide="zap" class="w-2.5 h-2.5"></i> #Shorts 9:16
+                </span>
+              </div>
+
+              <!-- Bottom Overlay Badges -->
+              <div class="absolute bottom-2.5 inset-x-2.5 z-20 flex items-center justify-between text-[8px] font-mono text-white/90 bg-black/60 backdrop-blur-sm px-2 py-1 rounded-lg pointer-events-none">
+                <span id="preview-badge-timing">⏱ 0:00 - 0:30</span>
+                <span id="preview-badge-zoom">🔍 Zoom: 115%</span>
+              </div>
+
+              <!-- Empty State in Viewport -->
+              <div id="preview-empty-state" class="absolute inset-0 bg-secondary/90 backdrop-blur-sm flex flex-col items-center justify-center p-4 text-center z-10 space-y-2">
+                <i data-lucide="video" class="w-7 h-7 text-muted-foreground"></i>
+                <p class="text-xs font-semibold text-foreground" data-i18n="converter.emptyStateTitle">Оберіть 16:9 відео</p>
+                <p class="text-[10px] text-muted-foreground" data-i18n="converter.emptyStateSubtitle">Тут з'явиться інтерактивне 9:16 прев'ю</p>
+              </div>
+
+              <!-- Processing Overlay (Spinner) -->
+              <div id="preview-spinner" class="absolute inset-0 bg-black/85 backdrop-blur-md flex flex-col items-center justify-center p-4 text-center z-30 space-y-3 hidden">
+                <div class="w-10 h-10 border-3 border-primary border-t-transparent rounded-full animate-spin"></div>
+                <div class="space-y-1">
+                  <p class="text-xs font-bold text-white" data-i18n="converter.encodingTitle">FFmpeg кодування...</p>
+                  <p class="text-[10px] text-zinc-400" data-i18n="converter.encodingSubtitle">Створюємо 9:16 Shorts із розмитим фоном</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Result Actions Box (Hidden until converted) -->
+          <div id="converter-result-box" class="w-full max-w-[300px] rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 space-y-2 hidden">
+            <div class="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
+              <i data-lucide="check-circle" class="w-4 h-4"></i>
+              <span data-i18n="converter.resultSuccess">Shorts успішно створено!</span>
+            </div>
+            <p id="converter-result-title" class="text-[11px] text-foreground truncate font-medium"></p>
+            <div class="grid grid-cols-2 gap-2 pt-1">
+              <button id="btn-play-converted" class="h-8 rounded-lg bg-card hover:bg-secondary text-foreground text-xs font-medium border border-border flex items-center justify-center gap-1 transition">
+                <i data-lucide="play" class="w-3.5 h-3.5 text-primary"></i> Плеєр ▶
+              </button>
+              <button id="btn-schedule-converted" class="h-8 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold flex items-center justify-center gap-1 transition">
+                <i data-lucide="calendar" class="w-3.5 h-3.5"></i> У розклад
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ==================== TAB 3: HISTORY ==================== -->
+    <section id="tab-history" class="hidden space-y-3.5">
+      <div class="px-0.5">
+        <h2 class="text-sm font-bold tracking-tight text-foreground" data-i18n="history.title">Журнал публікацій</h2>
+        <p class="text-xs text-muted-foreground" data-i18n="history.subtitle">Історія завантажених та запланованих відео (з локальної бази SQLite)</p>
+      </div>
+
+      <!-- Desktop Table -->
+      <div class="hidden md:block rounded-xl border border-border bg-card overflow-hidden">
+        <table class="w-full text-xs text-left">
+          <thead class="bg-secondary/40 border-b border-border text-muted-foreground font-medium">
+            <tr>
+              <th class="py-3 px-4">Формат</th>
+              <th class="py-3 px-4">Назва</th>
+              <th class="py-3 px-4">Файл</th>
+              <th class="py-3 px-4">Статус (SQLite)</th>
+              <th class="py-3 px-4">Дата</th>
+              <th class="py-3 px-4 text-right">Дія</th>
+            </tr>
+          </thead>
+          <tbody id="history-rows" class="divide-y divide-border">
+            <tr><td colspan="6" class="p-8 text-center text-muted-foreground">Завантаження...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Mobile Cards List -->
+      <div id="history-mobile-list" class="md:hidden space-y-2.5">
+        <!-- Injected via JS -->
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MOBILE BOTTOM NAVIGATION BAR -->
+  <nav class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-background/95 backdrop-blur-lg border-t border-border flex items-center justify-around px-1 py-1 safe-bottom shadow-lg w-full max-w-full">
+    <button onclick="switchTab('calendar')" id="mob-tab-calendar" class="flex-1 flex flex-col items-center justify-center py-1.5 text-primary transition active:scale-95">
+      <i data-lucide="calendar" class="w-5 h-5"></i>
+      <span class="text-[9px] font-semibold mt-0.5" data-i18n="nav.calendar">Розклад</span>
+    </button>
+    
+    <button onclick="switchTab('library')" id="mob-tab-library" class="flex-1 flex flex-col items-center justify-center py-1.5 text-muted-foreground hover:text-foreground transition active:scale-95">
+      <i data-lucide="layout-grid" class="w-5 h-5"></i>
+      <span class="text-[9px] font-medium mt-0.5" data-i18n="nav.library">Медіа</span>
+    </button>
+    
+    <div class="flex items-center justify-center -mt-5 px-1">
+      <button onclick="openDrawer(null)" class="w-11 h-11 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg shadow-primary/30 ring-4 ring-background transition active:scale-90" title="Запланувати пост">
+        <i data-lucide="plus" class="w-5 h-5"></i>
+      </button>
+    </div>
+
+    <button onclick="switchTab('converter')" id="mob-tab-converter" class="flex-1 flex flex-col items-center justify-center py-1.5 text-muted-foreground hover:text-foreground transition active:scale-95">
+      <i data-lucide="wand-2" class="w-5 h-5 text-rose-500"></i>
+      <span class="text-[9px] font-medium mt-0.5" data-i18n="nav.converterMob">⚡ Shorts</span>
+    </button>
+    
+    <button onclick="switchTab('history')" id="mob-tab-history" class="flex-1 flex flex-col items-center justify-center py-1.5 text-muted-foreground hover:text-foreground transition active:scale-95">
+      <i data-lucide="history" class="w-5 h-5"></i>
+      <span class="text-[9px] font-medium mt-0.5" data-i18n="nav.history">Історія</span>
+    </button>
+  </nav>
+
+  <!-- SCRIPT LOGIC -->
+  <script>
+    let allVideos = [];
+    let calendarMap = {};
+    let currentFilter = 'all';
+    let selectedDateKey = '';
+
+    const I18N = {
+      uk: {
+        langCode: 'UA',
+        flag: '🇺🇦',
+        appName: 'YouTube Scheduler',
+        nav: {
+          calendar: 'Розклад',
+          library: 'Медіатека',
+          converter: '⚡ Shorts Студія',
+          converterMob: '⚡ Shorts',
+          history: 'Історія'
+        },
+        calendar: {
+          weekdaysShort: ['Нд', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'],
+          weekdaysFull: ['Неділя', 'Понеділок', 'Вівторок', 'Середа', 'Четвер', 'П’ятниця', 'Субота'],
+          monthsGenitive: ['січня', 'лютого', 'березня', 'квітня', 'травня', 'червня', 'липня', 'серпня', 'вересня', 'жовтня', 'листопада', 'грудня'],
+          monthsNominative: ['Січень', 'Лютий', 'Березень', 'Квітень', 'Травень', 'Червень', 'Липень', 'Серпень', 'Вересень', 'Жовтень', 'Листопад', 'Грудень'],
+          emptyDayTitle: 'Публікацій не заплановано',
+          emptyDaySubtitle: 'Оберіть відео з медіатеки та призначте час',
+          scheduleForDay: '+ Запланувати на цей день',
+          upcomingTitle: '📅 Найближчі публікації',
+          upcomingEmpty: 'Немає запланованих відео на найближчі 14 днів.',
+          videosCount: 'відео',
+          today: 'Сьогодні, ',
+          editBtn: 'Редагувати ⚙',
+          allPlannedVideos: 'Всі заплановані та опубліковані ролики'
+        },
+        status: {
+          all: 'Всі',
+          planning: '⏳ В планах',
+          scheduled: '🕒 Заплановано',
+          posted: '✅ Запощено',
+          shorts: '⚡ Shorts'
+        },
+        library: {
+          shortsTitle: 'Вертикальні Shorts (9:16)',
+          regularTitle: 'Звичайні Відео (16:9)',
+          toShortsBtn: 'Shorts ⚡',
+          scheduleBtn: 'Запланувати',
+          clickPreview: "Клікніть прев'ю для перегляду",
+          postBtn: 'Пост'
+        },
+        header: { login: 'Вхід' },
+        converter: {
+          badge: '⚡ FFmpeg Studio',
+          title: 'Конвертер у Shorts (16:9 → 9:16)',
+          subtitle: 'Розмитий динамічний фон, настроюваний зум, точне позиціонування та автообрізка до 60 сек',
+          sourceLabel: 'Вихідне альбомне відео (16:9):',
+          sourcePlaceholder: 'Оберіть альбомне відео зі списку...',
+          timingLabel: 'Таймінг уривка (Shorts max 60с):',
+          startLabel: 'Початок (сек):',
+          durationLabel: 'Тривалість:',
+          quickPresets: 'Швидкий вибір:',
+          scaleLabel: 'Масштаб головного відео (Zoom):',
+          posLabel: 'Вертикальне положення (Y-позиція):',
+          posTop: 'Зверху',
+          posCenter: 'Центр',
+          posBottom: 'Знизу',
+          effectsLabel: 'Ефекти розмитого фону:',
+          blurLabel: 'Сила блюру:',
+          dimLabel: 'Затемнення фону:',
+          titleLabel: 'Назва для YouTube Shorts:',
+          generateBtn: '⚡ Згенерувати вертикальний Shorts (FFmpeg)',
+          encodingTitle: 'FFmpeg кодування...',
+          encodingSubtitle: 'Створюємо 9:16 Shorts із розмитим фоном',
+          previewTitle: 'Живий макет Shorts (9:16)',
+          previewSubtitle: "Прев'ю миттєво реагує на зміну масштабу, позиції та блюру",
+          emptyStateTitle: 'Оберіть 16:9 відео',
+          emptyStateSubtitle: "Тут з'явиться інтерактивне 9:16 прев'ю",
+          resultSuccess: 'Shorts успішно створено!',
+          playBtn: 'Плеєр ▶',
+          scheduleResultBtn: 'У розклад',
+          durationColon: 'Тривалість:',
+          secUnit: 'с',
+          zoom100: '100% (Без обрізки)',
+          zoom115: '115% (Рекомендовано)',
+          zoom150: '150% (Макс зум)',
+          converting: 'Кодування FFmpeg...'
+        },
+        history: {
+          title: 'Журнал публікацій',
+          subtitle: 'Історія завантажених та запланованих відео (з локальної бази SQLite)',
+          thFormat: 'Формат',
+          thTitle: 'Назва',
+          thFile: 'Файл',
+          thStatus: 'Статус (SQLite)',
+          thDate: 'Дата',
+          thAction: 'Дія',
+          emptyTitle: 'Журнал порожній',
+          emptySubtitle: "Тут з'являтимуться всі заплановані та опубліковані ролики.",
+          watchBtn: 'Дивитися ▶',
+          playerBtn: 'Плеєр ▶',
+          loading: 'Завантаження...',
+          noVideosYet: 'Ще немає опублікованих чи запланованих відео.'
+        },
+        drawer: {
+          title: 'Налаштування відео',
+          subtitle: 'Плеєр, зміна статусу або автопостинг',
+          sourceLabel: 'Відеофайл з локальної папки:',
+          statusLabel: 'Статус у базі даних:',
+          statusHint: '💡 Можна змінити статус вручну без автопостингу',
+          titleLabel: 'Назва на YouTube:',
+          descLabel: 'Опис:',
+          tagsLabel: 'Теги (через кому):',
+          privacyLabel: 'Режим публікації в YouTube:',
+          dateLabel: 'Дата та точний час публікації:',
+          saveStatusBtn: 'Зберегти статус',
+          submitBtn: 'В YouTube ↗',
+          sourcePlaceholder: 'Оберіть відео зі списку...',
+          saving: 'Збереження',
+          savingDb: 'Записуємо статус у локальну базу SQLite...',
+          sending: 'Відправка...',
+          uploadingYt: 'Відправляємо ролик на YouTube...',
+          selectVideoErr: 'Будь ласка, оберіть відеофайл!',
+          titleErr: "Назва відео обов'язкова!",
+          dateErr: 'Вкажіть дату й час публікації!',
+          postedSuccess: 'Відео заплановано на YouTube (ID: {id})'
+        },
+        player: {
+          scheduleBtn: 'Запланувати'
+        },
+        toasts: {
+          themeChange: 'Зміна теми',
+          themeDark: 'Увімкнено темну тему',
+          themeLight: 'Увімкнено світлу тему',
+          langChange: 'Зміна мови',
+          langSet: 'Увімкнено українську мову (UA)',
+          updated: 'Оновлено',
+          loadedVideos: 'Завантажено {n} роликів із бази SQLite',
+          error: 'Помилка',
+          saved: 'Збережено',
+          statusUpdated: 'Статус успішно змінено на «{status}»',
+          updating: 'Оновлення',
+          statusUpdating: 'Змінюємо статус на {status}...',
+          convertStart: 'Конвертація',
+          convertProcess: 'FFmpeg обробляє відео: створення розмитого фону та кадрування 9:16...',
+          convertDone: 'Готово!',
+          convertSuccess: 'Shorts успішно згенеровано: {file}',
+          authOpened: 'Відкриваємо Google для входу...'
+        }
+      },
+      en: {
+        langCode: 'EN',
+        flag: '🇬🇧',
+        appName: 'YouTube Scheduler',
+        nav: {
+          calendar: 'Schedule',
+          library: 'Library',
+          converter: '⚡ Shorts Studio',
+          converterMob: '⚡ Shorts',
+          history: 'History'
+        },
+        calendar: {
+          weekdaysShort: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+          weekdaysFull: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+          monthsGenitive: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+          monthsNominative: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+          emptyDayTitle: 'No posts scheduled',
+          emptyDaySubtitle: 'Choose a video from the library and set a time',
+          scheduleForDay: '+ Schedule for this day',
+          upcomingTitle: '📅 Upcoming Posts',
+          upcomingEmpty: 'No videos scheduled for the next 14 days.',
+          videosCount: 'videos',
+          today: 'Today, ',
+          editBtn: 'Edit ⚙',
+          allPlannedVideos: 'All scheduled and published videos'
+        },
+        status: {
+          all: 'All',
+          planning: '⏳ In Planning',
+          scheduled: '🕒 Scheduled',
+          posted: '✅ Posted',
+          shorts: '⚡ Shorts'
+        },
+        library: {
+          shortsTitle: 'Vertical Shorts (9:16)',
+          regularTitle: 'Standard Videos (16:9)',
+          toShortsBtn: 'Shorts ⚡',
+          scheduleBtn: 'Schedule',
+          clickPreview: 'Click preview to watch',
+          postBtn: 'Post'
+        },
+        header: { login: 'Sign in' },
+        converter: {
+          badge: '⚡ FFmpeg Studio',
+          title: 'Shorts Converter (16:9 → 9:16)',
+          subtitle: 'Blurred dynamic background, customizable zoom, accurate positioning & auto-trim up to 60s',
+          sourceLabel: 'Source landscape video (16:9):',
+          sourcePlaceholder: 'Select a landscape video...',
+          timingLabel: 'Clip timing (Shorts max 60s):',
+          startLabel: 'Start (sec):',
+          durationLabel: 'Duration:',
+          quickPresets: 'Quick presets:',
+          scaleLabel: 'Main video scale (Zoom):',
+          posLabel: 'Vertical position (Y-position):',
+          posTop: 'Top',
+          posCenter: 'Center',
+          posBottom: 'Bottom',
+          effectsLabel: 'Blurred background effects:',
+          blurLabel: 'Blur radius:',
+          dimLabel: 'Background dim:',
+          titleLabel: 'YouTube Shorts title:',
+          generateBtn: '⚡ Generate Vertical Shorts (FFmpeg)',
+          encodingTitle: 'FFmpeg encoding...',
+          encodingSubtitle: 'Creating 9:16 Shorts with blurred background',
+          previewTitle: 'Shorts Live Mockup (9:16)',
+          previewSubtitle: 'Preview updates instantly when adjusting zoom, position, and blur',
+          emptyStateTitle: 'Select a 16:9 video',
+          emptyStateSubtitle: 'Interactive 9:16 preview will appear here',
+          resultSuccess: 'Shorts successfully created!',
+          playBtn: 'Player ▶',
+          scheduleResultBtn: 'To Schedule',
+          durationColon: 'Duration:',
+          secUnit: 's',
+          zoom100: '100% (No crop)',
+          zoom115: '115% (Recommended)',
+          zoom150: '150% (Max zoom)',
+          converting: 'FFmpeg encoding...'
+        },
+        history: {
+          title: 'Publishing Log',
+          subtitle: 'History of uploaded and scheduled videos (from local SQLite DB)',
+          thFormat: 'Format',
+          thTitle: 'Title',
+          thFile: 'File',
+          thStatus: 'Status (SQLite)',
+          thDate: 'Date',
+          thAction: 'Action',
+          emptyTitle: 'Log is empty',
+          emptySubtitle: 'All scheduled and uploaded videos will appear here.',
+          watchBtn: 'Watch ▶',
+          playerBtn: 'Player ▶',
+          loading: 'Loading...',
+          noVideosYet: 'No published or scheduled videos yet.'
+        },
+        drawer: {
+          title: 'Video Settings',
+          subtitle: 'Player, status change, or auto-posting',
+          sourceLabel: 'Video file from local folder:',
+          statusLabel: 'Status in database:',
+          statusHint: '💡 You can change status manually without auto-posting',
+          titleLabel: 'YouTube Title:',
+          descLabel: 'Description:',
+          tagsLabel: 'Tags (comma-separated):',
+          privacyLabel: 'YouTube Privacy Status:',
+          dateLabel: 'Date and exact publish time:',
+          saveStatusBtn: 'Save Status',
+          submitBtn: 'To YouTube ↗',
+          sourcePlaceholder: 'Select a video from the list...',
+          saving: 'Saving',
+          savingDb: 'Saving status to local SQLite database...',
+          sending: 'Submitting...',
+          uploadingYt: 'Submitting video to YouTube...',
+          selectVideoErr: 'Please select a video file!',
+          titleErr: 'Video title is required!',
+          dateErr: 'Please specify publish date and time!',
+          postedSuccess: 'Video scheduled on YouTube (ID: {id})'
+        },
+        player: {
+          scheduleBtn: 'Schedule'
+        },
+        toasts: {
+          themeChange: 'Theme Change',
+          themeDark: 'Dark theme enabled',
+          themeLight: 'Light theme enabled',
+          langChange: 'Language Change',
+          langSet: 'Switched to English (EN)',
+          updated: 'Updated',
+          loadedVideos: 'Loaded {n} videos from SQLite database',
+          error: 'Error',
+          saved: 'Saved',
+          statusUpdated: 'Status updated to "{status}"',
+          updating: 'Updating',
+          statusUpdating: 'Changing status to {status}...',
+          convertStart: 'Conversion',
+          convertProcess: 'FFmpeg is processing video: blurring background and cropping 9:16...',
+          convertDone: 'Done!',
+          convertSuccess: 'Shorts successfully created: {file}',
+          authOpened: 'Opening Google for sign-in...'
+        }
+      }
+    };
+
+    let currentLang = 'uk';
+
+    function t(path, params = {}) {
+      const keys = path.split('.');
+      let obj = I18N[currentLang] || I18N.uk;
+      for (const k of keys) {
+        if (obj && obj[k] !== undefined) obj = obj[k];
+        else {
+          // fallback to uk
+          let fb = I18N.uk;
+          for (const fbk of keys) {
+            if (fb && fb[fbk] !== undefined) fb = fb[fbk];
+            else return path;
+          }
+          obj = fb;
+          break;
+        }
+      }
+      if (typeof obj === 'string') {
+        let res = obj;
+        for (const [pk, pv] of Object.entries(params)) {
+          res = res.replace(new RegExp(`\\{${pk}\\}`, 'g'), pv);
+        }
+        return res;
+      }
+      return obj;
+    }
+
+    function getStatusMap() {
+      const tr = I18N[currentLang] || I18N.uk;
+      return {
+        planning: { label: tr.status.planning, badgeClass: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20' },
+        scheduled: { label: tr.status.scheduled, badgeClass: 'bg-amber-500/10 text-amber-500 border-amber-500/20' },
+        posted: { label: tr.status.posted, badgeClass: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' }
+      };
+    }
+
+    function applyLanguage(lang) {
+      if (!I18N[lang]) lang = 'uk';
+      currentLang = lang;
+      localStorage.setItem('yt_scheduler_lang', lang);
+      document.documentElement.lang = lang;
+
+      const flagEl = document.getElementById('lang-flag');
+      const codeEl = document.getElementById('lang-code');
+      if (flagEl) flagEl.innerText = I18N[lang].flag;
+      if (codeEl) codeEl.innerText = I18N[lang].langCode;
+
+      // Update static tagged elements
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        const val = t(key);
+        if (typeof val === 'string') el.innerText = val;
+      });
+
+      // Update placeholders
+      document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        const key = el.getAttribute('data-i18n-placeholder');
+        const val = t(key);
+        if (typeof val === 'string') el.placeholder = val;
+      });
+
+      // Update position labels in Converter
+      const posVal = document.getElementById('converter-pos-val');
+      if (posVal) {
+        if (converterPosPercent <= 30) posVal.innerText = `${t('converter.posTop')} (${converterPosPercent}%)`;
+        else if (converterPosPercent >= 70) posVal.innerText = `${t('converter.posBottom')} (${converterPosPercent}%)`;
+        else posVal.innerText = `${t('converter.posCenter')} (${converterPosPercent}%)`;
+      }
+
+      // Update preset buttons and duration unit
+      const secUnit = t('converter.secUnit') || 'с';
+      document.querySelectorAll('.preset-btn').forEach(btn => {
+        const s = btn.getAttribute('data-sec');
+        if (s) btn.innerText = `${s}${secUnit}`;
+      });
+      const durRange = document.getElementById('converter-duration-range');
+      const durVal = document.getElementById('converter-duration-val');
+      if (durRange && durVal) {
+        durVal.innerText = `${durRange.value}${secUnit}`;
+      }
+      const durEl = document.getElementById('converter-source-dur');
+      if (durEl && currentConverterVideo) {
+        durEl.innerText = `${t('converter.durationColon')} ${currentConverterVideo.duration_formatted}`;
+      }
+
+      // Re-render dynamic components
+      renderCalendar();
+      renderLibrary();
+      populateDrawerSelect();
+      populateConverterSelect();
+      if (currentConverterVideo) updateLivePreview();
+      const histTab = document.getElementById('tab-history');
+      if (histTab && !histTab.classList.contains('hidden')) loadHistory();
+
+      lucide.createIcons();
+    }
+
+    function toggleLanguage() {
+      const next = currentLang === 'uk' ? 'en' : 'uk';
+      applyLanguage(next);
+      toast.info(t('toasts.langChange'), t('toasts.langSet'));
+    }
+
+
+    function initTheme() {
+      const saved = localStorage.getItem('yt_scheduler_theme');
+      setTheme(saved === 'light' ? 'light' : 'dark');
+    }
+
+    function setTheme(theme) {
+      const root = document.documentElement;
+      const sunIcon = document.getElementById('sun-icon');
+      const moonIcon = document.getElementById('moon-icon');
+
+      if (theme === 'light') {
+        root.classList.remove('dark');
+        sunIcon.classList.remove('hidden');
+        moonIcon.classList.add('hidden');
+        localStorage.setItem('yt_scheduler_theme', 'light');
+      } else {
+        root.classList.add('dark');
+        sunIcon.classList.add('hidden');
+        moonIcon.classList.remove('hidden');
+        localStorage.setItem('yt_scheduler_theme', 'dark');
+      }
+    }
+
+    function toggleTheme() {
+      const isDark = document.documentElement.classList.contains('dark');
+      setTheme(isDark ? 'light' : 'dark');
+      toast.info("Зміна теми", `Увімкнено ${!isDark ? 'темну' : 'світлу'} тему`);
+    }
+
+    const toast = {
+      show(title, msg, type = 'info') {
+        const container = document.getElementById('toast-container');
+        const t = document.createElement('div');
+        t.className = `toast-anim pointer-events-auto flex items-start gap-2.5 rounded-xl border border-border bg-card p-3 text-xs text-card-foreground shadow-xl`;
+
+        const iconName = type === 'success' ? 'check-circle-2' : type === 'error' ? 'alert-circle' : 'info';
+        const iconColor = type === 'success' ? 'text-emerald-500' : type === 'error' ? 'text-rose-500' : 'text-primary';
+
+        t.innerHTML = `
+          <div class="${iconColor} shrink-0 mt-0.5">
+            <i data-lucide="${iconName}" class="w-4 h-4"></i>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="font-medium text-foreground">${title}</div>
+            <div class="text-muted-foreground text-[11px] leading-snug truncate">${msg}</div>
+          </div>
+          <button onclick="this.parentElement.remove()" class="text-muted-foreground hover:text-foreground shrink-0">
+            <i data-lucide="x" class="w-3.5 h-3.5"></i>
+          </button>
+        `;
+
+        container.appendChild(t);
+        lucide.createIcons();
+
+        setTimeout(() => {
+          t.style.opacity = '0';
+          t.style.transform = 'translateY(10px)';
+          t.style.transition = 'all 0.2s ease';
+          setTimeout(() => t.remove(), 200);
+        }, 4000);
+      },
+      success(title, msg) { this.show(title, msg, 'success'); },
+      error(title, msg) { this.show(title, msg, 'error'); },
+      info(title, msg) { this.show(title, msg, 'info'); }
+    };
+
+    function switchTab(tabId) {
+      ['calendar', 'library', 'converter', 'history'].forEach(t => {
+        const tabEl = document.getElementById(`tab-${t}`);
+        if (tabEl) tabEl.classList.add('hidden');
+        
+        const btn = document.getElementById(`tab-btn-${t}`);
+        if (btn) btn.className = "tab-btn inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium transition text-muted-foreground hover:text-foreground";
+
+        const mobBtn = document.getElementById(`mob-tab-${t}`);
+        if (mobBtn) {
+          mobBtn.classList.remove('text-primary');
+          mobBtn.classList.add('text-muted-foreground');
+        }
+      });
+
+      const currentTab = document.getElementById(`tab-${tabId}`);
+      if (currentTab) currentTab.classList.remove('hidden');
+      
+      const activeBtn = document.getElementById(`tab-btn-${tabId}`);
+      if (activeBtn) activeBtn.className = "tab-btn inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium transition bg-card text-foreground shadow-sm";
+
+      const activeMobBtn = document.getElementById(`mob-tab-${tabId}`);
+      if (activeMobBtn) {
+        activeMobBtn.classList.remove('text-muted-foreground');
+        activeMobBtn.classList.add('text-primary');
+      }
+
+      if (tabId === 'history') loadHistory();
+      if (tabId === 'converter') populateConverterSelect();
+      lucide.createIcons();
+    }
+
+    async function checkAuth() {
+      try {
+        const res = await fetch('/api/auth/status');
+        const data = await res.json();
+        const box = document.getElementById('auth-box');
+        if (data.authenticated) {
+          box.innerHTML = `
+            <div class="h-8 px-2 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[11px] font-medium flex items-center gap-1 border border-emerald-500/20" title="${data.channel_title || ''}">
+              <span class="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0"></span>
+              <span class="truncate max-w-[70px] sm:max-w-[120px] font-medium">${data.channel_title || 'YouTube'}</span>
+            </div>
+          `;
+        } else {
+          box.innerHTML = `
+            <button onclick="loginGoogle()" class="h-8 px-2 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-[11px] font-semibold flex items-center gap-1 shadow-sm transition">
+              <i data-lucide="log-in" class="w-3.5 h-3.5"></i>
+              <span class="hidden sm:inline" data-i18n="header.login">Вхід</span>
+            </button>
+          `;
+        }
+        lucide.createIcons();
+      } catch (err) {
+        console.error("Auth check failed", err);
+      }
+    }
+
+    async function loginGoogle() {
+      toast.info("Авторизація", "Відкриваємо Google для входу...");
+      try {
+        const res = await fetch('/api/auth/login', { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+          toast.success("Готово", "YouTube-канал успішно підключено!");
+          checkAuth();
+        }
+      } catch (err) {
+        toast.error("Помилка авторизації", err.message);
+      }
+    }
+
+    async function loadData(manual = false) {
+      const refreshIcon = document.getElementById('refresh-icon');
+      if (refreshIcon) refreshIcon.classList.add('animate-spin');
+
+      try {
+        const [vRes, cRes] = await Promise.all([
+          fetch('/api/videos'),
+          fetch('/api/calendar')
+        ]);
+        
+        allVideos = await vRes.json();
+        calendarMap = await cRes.json();
+
+        const shortsCount = allVideos.filter(v => v.is_shorts).length;
+        const planningCount = allVideos.filter(v => v.status === 'planning').length;
+        const scheduledCount = allVideos.filter(v => v.status === 'scheduled').length;
+        const postedCount = allVideos.filter(v => v.status === 'posted').length;
+
+        document.getElementById('count-all').innerText = allVideos.length;
+        document.getElementById('count-planning').innerText = planningCount;
+        document.getElementById('count-scheduled').innerText = scheduledCount;
+        document.getElementById('count-posted').innerText = postedCount;
+        document.getElementById('count-shorts').innerText = shortsCount;
+
+        renderCalendar();
+        renderLibrary();
+        populateDrawerSelect();
+        populateConverterSelect();
+
+        if (manual) toast.success("Оновлено", `Завантажено ${allVideos.length} роликів із бази SQLite`);
+      } catch (err) {
+        toast.error("Помилка", err.message);
+      } finally {
+        if (refreshIcon) refreshIcon.classList.remove('animate-spin');
+        lucide.createIcons();
+      }
+    }
+
+    // ================= STATUS UPDATE API =================
+    async function changeVideoStatus(encodedPath, newStatus) {
+      const path = decodeURIComponent(encodedPath);
+      const sm = getStatusMap(); const label = (sm[newStatus] || {}).label || newStatus;
+      
+      toast.info(t("toasts.updating"), t("toasts.statusUpdating", { status: label }));
+      try {
+        const res = await fetch('/api/video/status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            path: path,
+            status: newStatus
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || data.message || "Помилка оновлення");
+        
+        toast.success(t("toasts.saved"), t("toasts.statusUpdated", { status: label }));
+        loadData();
+      } catch (err) {
+        toast.error("Помилка", err.message);
+      }
+    }
+
+    function renderStatusDropdownHtml(v) {
+      const cur = v.status || 'planning';
+      const sm = getStatusMap();
+      const st = sm[cur] || sm.planning;
+      const tr = I18N[currentLang] || I18N.uk;
+      return `
+        <select onchange="changeVideoStatus('${encodeURIComponent(v.path)}', this.value)" onclick="event.stopPropagation()" class="text-[9px] font-semibold rounded px-1.5 py-0.5 border outline-none cursor-pointer transition ${st.badgeClass}">
+          <option value="planning" ${cur === 'planning' ? 'selected' : ''}>${tr.status.planning}</option>
+          <option value="scheduled" ${cur === 'scheduled' ? 'selected' : ''}>${tr.status.scheduled}</option>
+          <option value="posted" ${cur === 'posted' ? 'selected' : ''}>${tr.status.posted}</option>
+        </select>
+      `;
+    }
+
+    // ================= VIDEO PLAYER MODAL =================
+    function openVideoPlayer(encodedPath) {
+      const path = decodeURIComponent(encodedPath);
+      const v = allVideos.find(item => item.path === path);
+      if (!v) return;
+
+      const modal = document.getElementById('player-modal');
+      const player = document.getElementById('main-video-player');
+      const titleEl = document.getElementById('player-title');
+      const badgeEl = document.getElementById('player-badge');
+      const metaEl = document.getElementById('player-meta-info');
+      const scheduleBtn = document.getElementById('player-schedule-btn');
+      const videoBox = document.getElementById('player-video-box');
+
+      titleEl.innerText = v.title || v.filename;
+      metaEl.innerText = `${v.resolution} • ${v.duration_formatted} • ${v.size_mb} MB`;
+      
+      if (v.is_shorts) {
+        badgeEl.className = "text-[9px] font-bold px-1.5 py-0.5 rounded bg-rose-600 text-white";
+        badgeEl.innerText = "⚡ Shorts";
+        videoBox.className = "w-full flex items-center justify-center bg-black py-2";
+        player.className = "max-h-[66vh] aspect-[9/16] rounded-lg shadow-lg";
+      } else {
+        badgeEl.className = "text-[9px] font-bold px-1.5 py-0.5 rounded bg-sky-600 text-white";
+        badgeEl.innerText = "🎬 16:9";
+        videoBox.className = "w-full flex items-center justify-center bg-black";
+        player.className = "w-full max-h-[66vh] aspect-video rounded-lg shadow-lg";
+      }
+
+      scheduleBtn.onclick = () => {
+        closePlayerModal();
+        openDrawer(encodedPath);
+      };
+
+      player.src = `/api/video-stream?path=${encodeURIComponent(v.path)}`;
+      modal.classList.remove('opacity-0', 'pointer-events-none');
+      player.play().catch(() => {});
+      lucide.createIcons();
+    }
+
+    function closePlayerModal() {
+      const modal = document.getElementById('player-modal');
+      const player = document.getElementById('main-video-player');
+      player.pause();
+      player.src = '';
+      modal.classList.add('opacity-0', 'pointer-events-none');
+    }
+
+    function openDrawerVideoInPlayer() {
+      const path = document.getElementById('drawer-video-select').value;
+      if (path) openVideoPlayer(encodeURIComponent(path));
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closePlayerModal();
+    });
+
+    // ================= CALENDAR =================
+    function renderCalendar() {
+      const tr = I18N[currentLang] || I18N.uk;
+      const stripContainer = document.getElementById('week-strip-container');
+      stripContainer.innerHTML = '';
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      if (!selectedDateKey) {
+        selectedDateKey = formatDateKey(today);
+      }
+
+      const curMonth = tr.calendar.monthsNominative[today.getMonth()];
+      document.getElementById('calendar-active-month').innerText = `${curMonth} ${today.getFullYear()}`;
+
+      for (let i = 0; i < 14; i++) {
+        const d = new Date(today);
+        d.setDate(today.getDate() + i);
+        const dateKey = formatDateKey(d);
+        const hasPosts = (calendarMap[dateKey] || []).length > 0;
+        const isSelected = dateKey === selectedDateKey;
+        const isToday = i === 0;
+
+        const pill = document.createElement('button');
+        pill.onclick = () => selectCalendarDate(dateKey);
+        pill.className = `flex flex-col items-center justify-center min-w-[52px] h-[64px] rounded-xl border transition shrink-0 ${
+          isSelected 
+            ? 'bg-primary text-primary-foreground border-primary shadow-sm font-bold' 
+            : 'bg-card text-foreground border-border hover:bg-secondary/60'
+        }`;
+
+        const dayName = isToday ? (currentLang === 'en' ? 'Today' : 'Сьог') : tr.calendar.weekdaysShort[d.getDay()];
+
+        pill.innerHTML = `
+          <span class="text-[10px] uppercase font-semibold ${isSelected ? 'text-primary-foreground/90' : 'text-muted-foreground'}">
+            ${dayName}
+          </span>
+          <span class="text-sm font-extrabold mt-0.5">${d.getDate()}</span>
+          <div class="h-1.5 w-1.5 rounded-full mt-1 ${hasPosts ? (isSelected ? 'bg-white' : 'bg-rose-500') : 'opacity-0'}"></div>
+        `;
+
+        stripContainer.appendChild(pill);
+      }
+
+      renderSelectedDayView();
+      renderUpcomingAgenda();
+    }
+
+    function formatDateKey(d) {
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    }
+
+    function selectCalendarDate(dateKey) {
+      selectedDateKey = dateKey;
+      renderCalendar();
+    }
+
+    function openDrawerForSelectedDate() {
+      openDrawer();
+      document.getElementById('drawer-datetime').value = `${selectedDateKey}T18:00`;
+      document.getElementById('drawer-manual-status').value = 'scheduled';
+    }
+
+    function renderSelectedDayView() {
+      const parts = selectedDateKey.split('-');
+      const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+      
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const isToday = formatDateKey(today) === selectedDateKey;
+
+      const titleEl = document.getElementById('selected-day-title');
+      const tr = I18N[currentLang] || I18N.uk;
+      const weekdayName = tr.calendar.weekdaysFull[d.getDay()];
+      const monthName = tr.calendar.monthsGenitive[d.getMonth()];
+      
+      titleEl.innerText = `${isToday ? (I18N[currentLang] || I18N.uk).calendar.today : ''}${d.getDate()} ${monthName} (${weekdayName})`;
+
+      const container = document.getElementById('selected-day-posts');
+      container.innerHTML = '';
+
+      const posts = calendarMap[selectedDateKey] || [];
+
+      if (!posts.length) {
+        container.innerHTML = `
+          <div class="py-6 px-4 rounded-xl border border-dashed border-border bg-secondary/20 flex flex-col items-center justify-center text-center space-y-2">
+            <div class="w-9 h-9 rounded-full bg-secondary flex items-center justify-center text-muted-foreground">
+              <i data-lucide="calendar-x" class="w-4 h-4"></i>
+            </div>
+            <div>
+              <p class="text-xs font-semibold text-foreground">${(I18N[currentLang] || I18N.uk).calendar.emptyDayTitle}</p>
+              <p class="text-[11px] text-muted-foreground mt-0.5">${(I18N[currentLang] || I18N.uk).calendar.emptyDaySubtitle}</p>
+            </div>
+            <button onclick="openDrawerForSelectedDate()" class="mt-1 h-7 px-3 rounded-md bg-secondary hover:bg-primary hover:text-primary-foreground text-foreground text-xs font-medium transition">
+              ${(I18N[currentLang] || I18N.uk).calendar.scheduleForDay}
+            </button>
+          </div>
+        `;
+        lucide.createIcons();
+        return;
+      }
+
+      container.innerHTML = posts.map(sv => `
+        <div class="rounded-xl border border-border bg-secondary/30 p-2.5 flex items-center gap-3">
+          <div class="w-14 aspect-video rounded-md overflow-hidden bg-black shrink-0 relative group/p cursor-pointer" onclick="openVideoPlayer('${encodeURIComponent(sv.path || sv.file_path || '')}')">
+            <img src="/api/thumbnail?path=${encodeURIComponent(sv.path || sv.file_path || '')}" class="w-full h-full object-cover">
+            <div class="absolute inset-0 bg-black/40 flex items-center justify-center group-hover/p:bg-black/20 transition">
+              <i data-lucide="play" class="w-4 h-4 fill-white text-white"></i>
+            </div>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between gap-1 mb-1">
+              <div class="flex items-center gap-1">
+                <span class="text-[9px] font-bold px-1.5 py-0.2 rounded ${sv.is_shorts ? 'bg-rose-500/10 text-rose-500' : 'bg-sky-500/10 text-sky-500'}">
+                  ${sv.is_shorts ? '⚡ Shorts' : '🎬 16:9'}
+                </span>
+                <span class="text-[10px] font-mono text-muted-foreground">
+                  ${new Date(sv.scheduled_for).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                </span>
+              </div>
+              <div>${renderStatusDropdownHtml(sv)}</div>
+            </div>
+            <p class="text-xs font-semibold text-foreground truncate" title="${sv.title}">${sv.title}</p>
+            <div class="flex items-center justify-between mt-1 text-[10px]">
+              <button onclick="openDrawer('${encodeURIComponent(sv.path || sv.file_path)}')" class="text-primary hover:underline font-medium">
+                ${(I18N[currentLang] || I18N.uk).calendar.editBtn}
+              </button>
+              ${sv.youtube_url ? `<a href="${sv.youtube_url}" target="_blank" class="text-primary hover:underline">YouTube ↗</a>` : ''}
+            </div>
+          </div>
+        </div>
+      `).join('');
+
+      lucide.createIcons();
+    }
+
+    function renderUpcomingAgenda() {
+      const tr = I18N[currentLang] || I18N.uk;
+      const container = document.getElementById('upcoming-agenda-list');
+      container.innerHTML = '';
+
+      const keys = Object.keys(calendarMap).sort();
+      let totalUpcoming = 0;
+
+      keys.forEach(k => {
+        const posts = calendarMap[k] || [];
+        if (!posts.length) return;
+
+        totalUpcoming += posts.length;
+        const dParts = k.split('-');
+        const dateObj = new Date(parseInt(dParts[0]), parseInt(dParts[1]) - 1, parseInt(dParts[2]));
+        const dayLabel = `${dateObj.getDate()} ${tr.calendar.monthsGenitive[dateObj.getMonth()]}`;
+
+        const row = document.createElement('div');
+        row.className = "rounded-xl border border-border bg-card p-3 space-y-2";
+        row.innerHTML = `
+          <div class="flex items-center justify-between text-xs font-semibold text-muted-foreground border-b border-border/50 pb-1.5">
+            <span>📅 ${dayLabel}</span>
+            <span class="text-[10px] bg-secondary px-1.5 py-0.2 rounded font-mono">${posts.length} ${tr.calendar.videosCount}</span>
+          </div>
+          <div class="space-y-1.5">
+            ${posts.map(p => `
+              <div class="flex items-center justify-between text-xs gap-2">
+                <span class="truncate text-foreground font-medium flex-1 cursor-pointer hover:text-primary" onclick="openVideoPlayer('${encodeURIComponent(p.path || p.file_path || '')}')">
+                  ▶ ${p.title}
+                </span>
+                <div class="flex items-center gap-1.5 shrink-0">
+                  <span class="text-[10px] text-muted-foreground font-mono">${new Date(p.scheduled_for).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
+                  ${renderStatusDropdownHtml(p)}
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+        container.appendChild(row);
+      });
+
+      if (totalUpcoming === 0) {
+        container.innerHTML = `
+          <div class="p-3 text-center text-xs text-muted-foreground bg-card rounded-xl border border-border/60">
+            ${tr.calendar.upcomingEmpty}
+          </div>
+        `;
+      }
+    }
+
+    // ================= MEDIA LIBRARY =================
+    function filterVideos(type) {
+      currentFilter = type;
+      ['all', 'planning', 'scheduled', 'posted', 'shorts'].forEach(t => {
+        const btn = document.getElementById(`filter-${t}`);
+        if (!btn) return;
+        if (t === type) {
+          btn.className = "h-8 px-2.5 rounded-lg text-xs font-medium bg-secondary text-foreground shrink-0 transition";
+        } else {
+          btn.className = "h-8 px-2.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground shrink-0 transition";
+        }
+      });
+
+      renderLibrary();
+    }
+
+    function renderLibrary() {
+      const shortsGrid = document.getElementById('shorts-grid');
+      const regularGrid = document.getElementById('regular-grid');
+
+      let filtered = [...allVideos];
+      if (currentFilter === 'planning') {
+        filtered = filtered.filter(v => v.status === 'planning');
+      } else if (currentFilter === 'scheduled') {
+        filtered = filtered.filter(v => v.status === 'scheduled');
+      } else if (currentFilter === 'posted') {
+        filtered = filtered.filter(v => v.status === 'posted');
+      } else if (currentFilter === 'shorts') {
+        filtered = filtered.filter(v => v.is_shorts);
+      }
+
+      const shorts = filtered.filter(v => v.is_shorts);
+      const regulars = filtered.filter(v => !v.is_shorts);
+
+      // Render Vertical Shorts (9:16) with Play Button
+      shortsGrid.innerHTML = shorts.map(v => `
+        <div class="group relative rounded-xl border border-border bg-card overflow-hidden flex flex-col justify-between hover:border-primary/50 transition">
+          <div class="relative aspect-[9/16] bg-black overflow-hidden group/thumb cursor-pointer" onclick="openVideoPlayer('${encodeURIComponent(v.path)}')">
+            <img src="/api/thumbnail?path=${encodeURIComponent(v.path)}" class="w-full h-full object-cover group-hover/thumb:scale-105 transition duration-300">
+            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20"></div>
+
+            <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div class="w-10 h-10 rounded-full bg-black/60 backdrop-blur-sm text-white flex items-center justify-center shadow-lg group-hover/thumb:scale-110 group-hover/thumb:bg-primary transition duration-200">
+                <i data-lucide="play" class="w-4 h-4 fill-white ml-0.5"></i>
+              </div>
+            </div>
+
+            <div class="absolute top-1.5 left-1.5">
+              <span class="inline-flex items-center gap-0.5 rounded bg-rose-600 px-1.5 py-0.5 text-[8px] font-bold text-white shadow">
+                <i data-lucide="zap" class="w-2.5 h-2.5"></i> Shorts
+              </span>
+            </div>
+
+            <div class="absolute bottom-1.5 right-1.5">
+              <span class="rounded bg-black/80 px-1 py-0.5 text-[9px] font-mono font-semibold text-white">
+                ${v.duration_formatted}
+              </span>
+            </div>
+          </div>
+
+          <div class="p-2 space-y-1.5">
+            <div class="flex items-center justify-between gap-1">
+              <p class="text-xs font-semibold text-foreground truncate flex-1" title="${v.title}">${v.title || v.filename}</p>
+            </div>
+            
+            <div class="flex items-center justify-between gap-1 pt-0.5">
+              ${renderStatusDropdownHtml(v)}
+              <button onclick="openDrawer('${encodeURIComponent(v.path)}')" class="h-6 px-2 rounded bg-secondary hover:bg-primary hover:text-primary-foreground text-foreground text-[10px] font-medium flex items-center gap-0.5 transition shrink-0">
+                <span>${t('library.postBtn') || 'Пост'}</span> ↗
+              </button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+
+      // Render Regular Videos (16:9) with Play Button
+      regularGrid.innerHTML = regulars.map(v => `
+        <div class="group relative rounded-xl border border-border bg-card overflow-hidden flex flex-col justify-between hover:border-primary/50 transition">
+          <div class="relative aspect-video bg-black overflow-hidden group/thumb cursor-pointer" onclick="openVideoPlayer('${encodeURIComponent(v.path)}')">
+            <img src="/api/thumbnail?path=${encodeURIComponent(v.path)}" class="w-full h-full object-cover group-hover/thumb:scale-105 transition duration-300">
+            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20"></div>
+
+            <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div class="w-11 h-11 rounded-full bg-black/60 backdrop-blur-sm text-white flex items-center justify-center shadow-lg group-hover/thumb:scale-110 group-hover/thumb:bg-primary transition duration-200">
+                <i data-lucide="play" class="w-5 h-5 fill-white ml-0.5"></i>
+              </div>
+            </div>
+
+            <div class="absolute top-2 left-2">
+              <span class="inline-flex items-center gap-1 rounded bg-sky-600 px-1.5 py-0.5 text-[9px] font-bold text-white shadow">
+                <i data-lucide="film" class="w-2.5 h-2.5"></i> 16:9
+              </span>
+            </div>
+
+            <div class="absolute bottom-2 right-2">
+              <span class="rounded bg-black/80 px-1.5 py-0.5 text-[10px] font-mono font-semibold text-white">
+                ${v.duration_formatted}
+              </span>
+            </div>
+          </div>
+
+          <div class="p-3 space-y-2">
+            <div>
+              <div class="flex items-center justify-between gap-2 mb-0.5">
+                <p class="text-xs font-semibold text-foreground truncate flex-1" title="${v.title}">${v.title || v.filename}</p>
+                ${renderStatusDropdownHtml(v)}
+              </div>
+              <p class="text-[10px] text-muted-foreground font-mono truncate">${v.filename}</p>
+            </div>
+
+            <div class="pt-2 border-t border-border flex items-center justify-between gap-1.5">
+              <button onclick="openShortsConverter('${encodeURIComponent(v.path)}')" class="h-7 px-2 rounded-lg bg-rose-500/10 hover:bg-rose-500 hover:text-white text-rose-500 text-xs font-semibold flex items-center gap-1 transition">
+                <i data-lucide="wand-2" class="w-3 h-3"></i>
+                <span>${t('library.toShortsBtn') || 'Shorts ⚡'}</span>
+              </button>
+              <button onclick="openDrawer('${encodeURIComponent(v.path)}')" class="h-7 px-2.5 rounded-lg bg-secondary hover:bg-primary hover:text-primary-foreground text-foreground text-xs font-medium flex items-center gap-1 transition">
+                <i data-lucide="calendar-plus" class="w-3 h-3"></i>
+                <span>${t('library.scheduleBtn') || 'Запланувати'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+
+      lucide.createIcons();
+    }
+
+    // ================= DRAWER =================
+    function populateDrawerSelect() {
+      const sel = document.getElementById('drawer-video-select');
+      sel.innerHTML = `<option value="">${t('drawer.sourcePlaceholder') || 'Оберіть відео зі списку...'}</option>`;
+      allVideos.forEach(v => {
+        const opt = document.createElement('option');
+        opt.value = v.path;
+        const stEmoji = v.status === 'posted' ? '✅' : (v.status === 'scheduled' ? '🕒' : '⏳');
+        opt.innerText = `[${stEmoji} ${v.is_shorts ? 'Shorts' : '16:9'}] ${v.folder} - ${v.filename}`;
+        sel.appendChild(opt);
+      });
+    }
+
+    function openDrawer(encodedPath = null) {
+      const backdrop = document.getElementById('drawer-backdrop');
+      const panel = document.getElementById('drawer-panel');
+
+      backdrop.classList.remove('opacity-0', 'pointer-events-none');
+      panel.classList.remove('translate-y-full', 'md:translate-x-full');
+
+      if (!document.getElementById('drawer-datetime').value) {
+        const tm = new Date();
+        tm.setDate(tm.getDate() + 1);
+        tm.setHours(18, 0, 0, 0);
+        const offset = tm.getTimezoneOffset() * 60000;
+        document.getElementById('drawer-datetime').value = (new Date(tm - offset)).toISOString().slice(0, 16);
+      }
+
+      if (encodedPath) {
+        const path = decodeURIComponent(encodedPath);
+        document.getElementById('drawer-video-select').value = path;
+        onDrawerVideoChanged();
+      }
+      lucide.createIcons();
+    }
+
+    function closeDrawer() {
+      const backdrop = document.getElementById('drawer-backdrop');
+      const panel = document.getElementById('drawer-panel');
+
+      backdrop.classList.add('opacity-0', 'pointer-events-none');
+      panel.classList.add('translate-y-full', 'md:translate-x-full');
+    }
+
+    function onDrawerVideoChanged() {
+      const path = document.getElementById('drawer-video-select').value;
+      const v = allVideos.find(item => item.path === path);
+      const card = document.getElementById('drawer-preview-card');
+
+      if (!v) {
+        card.classList.add('hidden');
+        return;
+      }
+
+      card.classList.remove('hidden');
+      document.getElementById('drawer-thumb').src = `/api/thumbnail?path=${encodeURIComponent(v.path)}`;
+      document.getElementById('drawer-filename').innerText = v.filename;
+      document.getElementById('drawer-resolution').innerText = `${v.resolution} (${v.aspect_ratio})`;
+      document.getElementById('drawer-duration').innerText = `${v.duration_formatted} • ${v.size_mb} MB`;
+
+      const badge = document.getElementById('drawer-badge-type');
+      if (v.is_shorts) {
+        badge.className = "text-[9px] font-bold px-1.5 py-0.2 rounded bg-rose-600 text-white";
+        badge.innerText = "⚡ Shorts";
+      } else {
+        badge.className = "text-[9px] font-bold px-1.5 py-0.2 rounded bg-sky-600 text-white";
+        badge.innerText = "🎬 16:9";
+      }
+
+      document.getElementById('drawer-manual-status').value = v.status || 'planning';
+
+      let defaultTitle = v.title || v.filename;
+      if (v.is_shorts && !defaultTitle.includes('#Shorts')) defaultTitle += " #Shorts";
+      document.getElementById('drawer-title').value = defaultTitle;
+      document.getElementById('drawer-title-chars').innerText = defaultTitle.length + ' / 100';
+
+      let defaultDesc = v.description || `Яскраві моменти відео "${v.title || v.filename}". Підписуйтесь на канал!`;
+      if (v.is_shorts && !defaultDesc.includes('#Shorts')) defaultDesc += "\n\n#Shorts #Highlights #Viral";
+      document.getElementById('drawer-description').value = defaultDesc;
+
+      const tagsList = v.tags && v.tags.length ? [...v.tags] : ["Shorts", "Highlights", "Viral"];
+      if (v.is_shorts && !tagsList.includes('Shorts')) tagsList.push('Shorts');
+      document.getElementById('drawer-tags').value = tagsList.join(', ');
+
+      if (v.scheduled_for) {
+        try {
+          const dt = new Date(v.scheduled_for);
+          const offset = dt.getTimezoneOffset() * 60000;
+          document.getElementById('drawer-datetime').value = (new Date(dt - offset)).toISOString().slice(0, 16);
+        } catch(e) {}
+      }
+
+      const pillsBox = document.getElementById('drawer-title-pills');
+      pillsBox.innerHTML = '';
+      if (v.title_options && v.title_options.length) {
+        v.title_options.forEach(opt => {
+          const pill = document.createElement('button');
+          pill.className = "text-[11px] px-2 py-0.5 rounded-md bg-secondary hover:bg-accent text-muted-foreground hover:text-foreground border border-border transition";
+          pill.innerText = opt;
+          pill.onclick = () => {
+            const finalOpt = v.is_shorts && !opt.includes('#Shorts') ? `${opt} #Shorts` : opt;
+            document.getElementById('drawer-title').value = finalOpt;
+            document.getElementById('drawer-title-chars').innerText = finalOpt.length + ' / 100';
+          };
+          pillsBox.appendChild(pill);
+        });
+      }
+      lucide.createIcons();
+    }
+
+    function toggleDrawerScheduleDate() {
+      const priv = document.getElementById('drawer-privacy').value;
+      const box = document.getElementById('drawer-datetime-box');
+      if (priv === 'scheduled') {
+        box.classList.remove('opacity-30', 'pointer-events-none');
+      } else {
+        box.classList.add('opacity-30', 'pointer-events-none');
+      }
+    }
+
+    async function saveManualStatusOnly() {
+      const videoPath = document.getElementById('drawer-video-select').value;
+      if (!videoPath) {
+        toast.error(t('toasts.error'), t('drawer.selectVideoErr'));
+        return;
+      }
+      const st = document.getElementById('drawer-manual-status').value;
+      const dt = document.getElementById('drawer-datetime').value;
+      const title = document.getElementById('drawer-title').value.trim();
+
+      const btn = document.getElementById('btn-drawer-manual-save');
+      btn.disabled = true;
+      toast.info(t('drawer.saving'), t('drawer.savingDb'));
+
+      try {
+        const res = await fetch('/api/video/status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept-Language': currentLang },
+          body: JSON.stringify({
+            path: videoPath,
+            status: st,
+            scheduled_for: (st === 'scheduled' && dt) ? new Date(dt).toISOString() : (st === 'planning' ? null : undefined),
+            title: title || undefined
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || data.message || "Error");
+
+        closeDrawer();
+        const sm = getStatusMap();
+        const label = (sm[st] || {}).label || st;
+        toast.success(t('toasts.saved'), t('toasts.statusUpdated', { status: label }));
+        loadData();
+      } catch (err) {
+        toast.error("Помилка", err.message);
+      } finally {
+        btn.disabled = false;
+        lucide.createIcons();
+      }
+    }
+
+    async function submitSchedule() {
+      const videoPath = document.getElementById('drawer-video-select').value;
+      if (!videoPath) {
+        toast.error(t('toasts.error'), t('drawer.selectVideoErr'));
+        return;
+      }
+      const title = document.getElementById('drawer-title').value.trim();
+      if (!title) {
+        toast.error(t('toasts.error'), t('drawer.titleErr'));
+        return;
+      }
+
+      const v = allVideos.find(item => item.path === videoPath);
+      const isShorts = v ? v.is_shorts : false;
+
+      const privacy = document.getElementById('drawer-privacy').value;
+      let publishAt = null;
+      if (privacy === 'scheduled') {
+        const dt = document.getElementById('drawer-datetime').value;
+        if (!dt) {
+          toast.error(t('toasts.error'), t('drawer.dateErr'));
+          return;
+        }
+        publishAt = new Date(dt).toISOString();
+      }
+
+      const btn = document.getElementById('btn-drawer-submit');
+      btn.disabled = true;
+      btn.innerHTML = `<span class="animate-spin mr-1"><i data-lucide="loader-2" class="w-3.5 h-3.5"></i></span> ${t('drawer.sending')}`;
+      lucide.createIcons();
+
+      toast.info(t('drawer.sending'), t('drawer.uploadingYt'));
+
+      try {
+        const payload = {
+          video_path: videoPath,
+          title: title,
+          description: document.getElementById('drawer-description').value.trim(),
+          tags: document.getElementById('drawer-tags').value.split(',').map(t => t.trim()).filter(Boolean),
+          privacy: privacy,
+          publish_at: publishAt,
+          is_shorts: isShorts
+        };
+
+        const res = await fetch('/api/youtube/schedule', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || data.detail || "Upload error");
+
+        closeDrawer();
+        toast.success("Успішно!", `Відео заплановано на YouTube (ID: ${data.record.id})`);
+        loadData();
+      } catch (err) {
+        toast.error("Помилка публікації", err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i data-lucide="cloud-upload" class="w-3.5 h-3.5"></i><span data-i18n="drawer.submitBtn">В YouTube ↗</span>`;
+        lucide.createIcons();
+      }
+    }
+
+    // ================= HISTORY =================
+    async function loadHistory() {
+      const tbody = document.getElementById('history-rows');
+      const mobList = document.getElementById('history-mobile-list');
+
+      const loadingText = t('history.loading');
+      tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-muted-foreground">${loadingText}</td></tr>`;
+      mobList.innerHTML = `<div class="p-8 text-center text-muted-foreground">${loadingText}</div>`;
+
+      try {
+        const res = await fetch('/api/history', { headers: { 'Accept-Language': currentLang } });
+        const list = await res.json();
+        if (!list.length) {
+          const emptyMsg = t('history.noVideosYet');
+          tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-muted-foreground">${emptyMsg}</td></tr>`;
+          mobList.innerHTML = `
+            <div class="py-8 px-4 rounded-xl border border-dashed border-border bg-card text-center space-y-2">
+              <p class="text-xs font-semibold text-foreground">${t('history.emptyTitle')}</p>
+              <p class="text-[11px] text-muted-foreground">${t('history.emptySubtitle')}</p>
+            </div>
+          `;
+          return;
+        }
+
+        tbody.innerHTML = list.map(item => `
+          <tr class="hover:bg-secondary/40 transition">
+            <td class="py-3 px-4">
+              <span class="inline-flex items-center rounded px-1.5 py-0.2 text-[9px] font-bold ${item.is_shorts ? 'bg-rose-500/10 text-rose-500' : 'bg-sky-500/10 text-sky-500'}">
+                ${item.is_shorts ? '⚡ Shorts' : '🎬 Відео'}
+              </span>
+            </td>
+            <td class="py-3 px-4 font-medium text-foreground truncate max-w-[200px] cursor-pointer hover:text-primary" onclick="openVideoPlayer('${encodeURIComponent(item.path || item.file_path || '')}')">
+              ▶ ${item.title}
+            </td>
+            <td class="py-3 px-4 font-mono text-muted-foreground text-[11px] truncate max-w-[140px]">${item.filename || item.file}</td>
+            <td class="py-3 px-4">
+              ${renderStatusDropdownHtml(item)}
+            </td>
+            <td class="py-3 px-4 text-muted-foreground text-[11px]">
+              ${item.scheduled_for ? '🕒 ' + new Date(item.scheduled_for).toLocaleString() : new Date(item.updated_at).toLocaleDateString()}
+            </td>
+            <td class="py-3 px-4 text-right">
+              ${item.youtube_url ? `<a href="${item.youtube_url}" target="_blank" class="text-primary hover:underline font-semibold text-[11px]">YouTube ↗</a>` : `<button onclick="openVideoPlayer('${encodeURIComponent(item.path || item.file_path || '')}')" class="text-xs text-primary hover:underline">${t('history.watchBtn')}</button>`}
+            </td>
+          </tr>
+        `).join('');
+
+        mobList.innerHTML = list.map(item => `
+          <div class="rounded-xl border border-border bg-card p-3 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="inline-flex items-center rounded px-1.5 py-0.2 text-[9px] font-bold ${item.is_shorts ? 'bg-rose-500/10 text-rose-500' : 'bg-sky-500/10 text-sky-500'}">
+                ${item.is_shorts ? '⚡ Shorts' : '🎬 Відео'}
+              </span>
+              <span class="text-[10px] text-muted-foreground font-mono">
+                ${item.scheduled_for ? new Date(item.scheduled_for).toLocaleDateString() : new Date(item.updated_at).toLocaleDateString()}
+              </span>
+            </div>
+            <p class="text-xs font-semibold text-foreground line-clamp-2 cursor-pointer hover:text-primary" onclick="openVideoPlayer('${encodeURIComponent(item.path || item.file_path || '')}')">
+              ▶ ${item.title}
+            </p>
+            <div class="flex items-center justify-between pt-1 border-t border-border/60 text-[11px]">
+              <div>${renderStatusDropdownHtml(item)}</div>
+              <div class="flex items-center gap-2">
+                <button onclick="openVideoPlayer('${encodeURIComponent(item.path || item.file_path || '')}')" class="text-xs text-foreground hover:text-primary font-medium">
+                  ${t('history.playerBtn')}
+                </button>
+                ${item.youtube_url ? `<a href="${item.youtube_url}" target="_blank" class="text-primary font-semibold">YouTube ↗</a>` : ''}
+              </div>
+            </div>
+          </div>
+        `).join('');
+
+        lucide.createIcons();
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-rose-500">Помилка: ${err}</td></tr>`;
+        mobList.innerHTML = `<div class="p-8 text-center text-rose-500">Помилка: ${err}</div>`;
+      }
+    }
+
+    // ================= SHORTS CONVERTER STUDIO =================
+    let currentConverterVideo = null;
+    let converterPosPercent = 50;
+
+    function populateConverterSelect() {
+      const sel = document.getElementById('converter-source-select');
+      if (!sel) return;
+      const curVal = sel.value;
+      sel.innerHTML = `<option value="">${t('converter.sourcePlaceholder') || 'Оберіть альбомне відео зі списку...'}</option>`;
+      const regularVideos = allVideos.filter(v => !v.is_shorts);
+      regularVideos.forEach(v => {
+        const opt = document.createElement('option');
+        opt.value = v.path;
+        opt.innerText = `${v.filename} (${v.resolution}, ${v.duration_formatted})`;
+        sel.appendChild(opt);
+      });
+      if (curVal && regularVideos.some(v => v.path === curVal)) {
+        sel.value = curVal;
+      }
+    }
+
+    function openShortsConverter(encodedPath) {
+      const path = decodeURIComponent(encodedPath);
+      switchTab('converter');
+      const sel = document.getElementById('converter-source-select');
+      if (sel) {
+        sel.value = path;
+        onConverterSourceChanged();
+      }
+    }
+
+    function onConverterSourceChanged() {
+      const path = document.getElementById('converter-source-select').value;
+      const metaBox = document.getElementById('converter-source-meta');
+      const emptyState = document.getElementById('preview-empty-state');
+      const resultBox = document.getElementById('converter-result-box');
+      if (resultBox) resultBox.classList.add('hidden');
+      
+      if (!path) {
+        currentConverterVideo = null;
+        if (metaBox) metaBox.classList.add('hidden');
+        if (emptyState) emptyState.classList.remove('hidden');
+        return;
+      }
+
+      currentConverterVideo = allVideos.find(v => v.path === path);
+      if (!currentConverterVideo) return;
+
+      if (metaBox) metaBox.classList.remove('hidden');
+      if (emptyState) emptyState.classList.add('hidden');
+
+      const resEl = document.getElementById('converter-source-res');
+      const durEl = document.getElementById('converter-source-dur');
+      if (resEl) resEl.innerText = `${currentConverterVideo.resolution} • 16:9`;
+      if (durEl) durEl.innerText = `${t('converter.durationColon')} ${currentConverterVideo.duration_formatted}`;
+
+      const baseName = currentConverterVideo.filename.replace(/\.mp4$/i, '');
+      const defaultTitle = `${currentConverterVideo.title || baseName} #Shorts`;
+      const titleInput = document.getElementById('converter-title');
+      if (titleInput) {
+        titleInput.value = defaultTitle;
+        document.getElementById('converter-title-chars').innerText = defaultTitle.length + ' / 100';
+      }
+
+      const thumbUrl = `/api/thumbnail?path=${encodeURIComponent(currentConverterVideo.path)}`;
+      const bgImg = document.getElementById('preview-bg-img');
+      const fgImg = document.getElementById('preview-fg-img');
+      if (bgImg) bgImg.src = thumbUrl;
+      if (fgImg) fgImg.src = thumbUrl;
+
+      updateLivePreview();
+      lucide.createIcons();
+    }
+
+    function onConverterZoomChange(val) {
+      document.getElementById('converter-zoom-val').innerText = `${val}%`;
+      document.getElementById('preview-badge-zoom').innerText = `🔍 Zoom: ${val}%`;
+      updateLivePreview();
+    }
+
+    function setConverterDuration(sec) {
+      document.getElementById('converter-duration-range').value = sec;
+      document.getElementById('converter-duration-val').innerText = `${sec}${t('converter.secUnit') || 'с'}`;
+      updateLivePreview();
+    }
+
+    function setConverterPosition(ratio, label) {
+      converterPosPercent = Math.round(ratio * 100);
+      document.getElementById('converter-pos-range').value = converterPosPercent;
+      document.getElementById('converter-pos-val').innerText = label;
+
+      ['top', 'center', 'bottom'].forEach(p => {
+        const b = document.getElementById(`pos-btn-${p}`);
+        if (!b) return;
+        b.className = "h-8 rounded-lg border border-border bg-secondary hover:bg-accent text-xs font-medium text-foreground transition flex items-center justify-center gap-1";
+      });
+      if (ratio <= 0.3) {
+        const b = document.getElementById('pos-btn-top');
+        if (b) b.className = "h-8 rounded-lg border border-primary/50 bg-primary/10 text-primary text-xs font-semibold transition flex items-center justify-center gap-1";
+      } else if (ratio >= 0.7) {
+        const b = document.getElementById('pos-btn-bottom');
+        if (b) b.className = "h-8 rounded-lg border border-primary/50 bg-primary/10 text-primary text-xs font-semibold transition flex items-center justify-center gap-1";
+      } else {
+        const b = document.getElementById('pos-btn-center');
+        if (b) b.className = "h-8 rounded-lg border border-primary/50 bg-primary/10 text-primary text-xs font-semibold transition flex items-center justify-center gap-1";
+      }
+
+      updateLivePreview();
+    }
+
+    function onConverterPosRangeChange(val) {
+      converterPosPercent = parseInt(val);
+      document.getElementById('converter-pos-val').innerText = `${converterPosPercent}%`;
+      updateLivePreview();
+    }
+
+    function updateLivePreview() {
+      if (!currentConverterVideo) return;
+
+      const zoom = parseInt(document.getElementById('converter-zoom-range').value) / 100;
+      const blurPx = document.getElementById('converter-blur-range').value;
+      const dimPct = parseInt(document.getElementById('converter-dim-range').value);
+      const brightnessVal = 1 - (dimPct / 100);
+
+      const bgImg = document.getElementById('preview-bg-img');
+      if (bgImg) {
+        bgImg.style.filter = `blur(${blurPx}px) brightness(${brightnessVal})`;
+        bgImg.style.transform = `scale(1.25)`;
+      }
+
+      const fgWrapper = document.getElementById('preview-fg-wrapper');
+      const fgImg = document.getElementById('preview-fg-img');
+
+      if (fgWrapper) {
+        fgWrapper.style.top = `${converterPosPercent}%`;
+        fgWrapper.style.transform = `translateY(-${converterPosPercent}%)`;
+      }
+      if (fgImg) {
+        fgImg.style.transform = `scale(${zoom})`;
+      }
+
+      const startSec = parseInt(document.getElementById('converter-start-time').value) || 0;
+      const durSec = parseInt(document.getElementById('converter-duration-range').value) || 30;
+      const endSec = startSec + durSec;
+
+      const fmt = (s) => {
+        const m = Math.floor(s / 60);
+        const sec = s % 60;
+        return `${m}:${sec < 10 ? '0' : ''}${sec}`;
+      };
+
+      const secUnit = t('converter.secUnit') || 'с';
+      const timingText = `⏱ ${fmt(startSec)} - ${fmt(endSec)} (${durSec}${secUnit})`;
+      const badgeTime = document.getElementById('converter-time-badge');
+      const previewTime = document.getElementById('preview-badge-timing');
+      if (badgeTime) badgeTime.innerText = timingText;
+      if (previewTime) previewTime.innerText = timingText;
+    }
+
+    async function runShortsConversion() {
+      if (!currentConverterVideo) {
+        toast.error("Помилка", "Будь ласка, оберіть відео для конвертації!");
+        return;
+      }
+
+      const startSec = parseFloat(document.getElementById('converter-start-time').value) || 0.0;
+      const durSec = parseFloat(document.getElementById('converter-duration-range').value) || 30.0;
+      const zoomFactor = parseFloat(document.getElementById('converter-zoom-range').value) / 100;
+      const yPositionRatio = converterPosPercent / 100;
+      const blurVal = parseInt(document.getElementById('converter-blur-range').value) || 25;
+      const dimVal = (parseInt(document.getElementById('converter-dim-range').value) || 20) / 100;
+      const customTitle = document.getElementById('converter-title').value.trim();
+
+      const spinner = document.getElementById('preview-spinner');
+      const btn = document.getElementById('btn-run-convert');
+
+      spinner.classList.remove('hidden');
+      btn.disabled = true;
+      btn.innerHTML = `<span class="animate-spin mr-1"><i data-lucide="loader-2" class="w-4 h-4"></i></span> ${t('converter.converting') || 'FFmpeg encoding...'}`;
+      lucide.createIcons();
+
+      toast.info(t('toasts.convertStart'), t('toasts.convertProcess'));
+
+      try {
+        const res = await fetch('/api/convert-to-shorts', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Accept-Language': currentLang
+          },
+          body: JSON.stringify({
+            source_path: currentConverterVideo.path,
+            start_time: startSec,
+            duration: durSec,
+            zoom: zoomFactor,
+            y_position: yPositionRatio,
+            blur_radius: blurVal,
+            dim: dimVal,
+            title: customTitle,
+            lang: currentLang
+          })
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || data.message || "Conversion error");
+
+        toast.success(t('toasts.convertDone'), t('toasts.convertSuccess', { file: data.filename }));
+
+        const resBox = document.getElementById('converter-result-box');
+        resBox.classList.remove('hidden');
+        document.getElementById('converter-result-title').innerText = data.title;
+
+        document.getElementById('btn-play-converted').onclick = () => {
+          openVideoPlayer(encodeURIComponent(data.path));
+        };
+        document.getElementById('btn-schedule-converted').onclick = () => {
+          openDrawer(encodeURIComponent(data.path));
+        };
+
+        loadData();
+      } catch (err) {
+        toast.error("Помилка кодування", err.message);
+      } finally {
+        spinner.classList.add('hidden');
+        btn.disabled = false;
+        btn.innerHTML = `<i data-lucide="wand-2" class="w-4 h-4"></i><span data-i18n="converter.generateBtn">⚡ Згенерувати вертикальний Shorts (FFmpeg)</span>`;
+        lucide.createIcons();
+      }
+    }
+
+    initTheme();
+    
+    // Initialize i18n from deploy config or localStorage
+    async function bootApp() {
+      const savedLang = localStorage.getItem('yt_scheduler_lang');
+      let targetLang = savedLang;
+      if (!targetLang) {
+        try {
+          const cfgRes = await fetch('/api/config');
+          const cfg = await cfgRes.json();
+          targetLang = cfg.detected_lang || cfg.default_lang || 'uk';
+        } catch (e) {
+          targetLang = 'uk';
+        }
+      }
+      applyLanguage(targetLang);
+      checkAuth();
+      await loadData();
+      
+      const hash = window.location.hash.replace('#', '');
+      if (['calendar', 'library', 'converter', 'history'].includes(hash)) switchTab(hash);
+      if (hash === 'drawer') setTimeout(() => openDrawer(), 250);
+      if (hash === 'player') setTimeout(() => {
+        if (allVideos.length) openVideoPlayer(encodeURIComponent(allVideos[0].path));
+      }, 500);
+    }
+    
+    bootApp();
+  </script>
+</body>
+</html>

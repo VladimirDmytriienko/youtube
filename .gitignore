@@ -1,0 +1,99 @@
+# ==============================================================================
+# YouTube Studio Pro - Master Git Ignore
+# ==============================================================================
+
+# --- Media & Heavy Video/Audio Files (STRICTLY EXCLUDED) ---
+*.mp4
+*.mov
+*.mkv
+*.avi
+*.webm
+*.flv
+*.wmv
+*.m4v
+*.mp3
+*.wav
+*.aac
+*.m4a
+*.srt
+*.ass
+
+# Video content directories
+01 - */
+02 - */
+03 - */
+Top Crashes/
+emulator/
+iphone1609/
+need for spedd emu/
+processed/
+skate/
+skate1909/
+
+# Root test screenshots, preview captures & mockups
+*.png
+!frontend/public/*.png
+!frontend/src/**/*.png
+
+# --- Sensitive Credentials & Secrets (STRICTLY EXCLUDED) ---
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+client_secret.json
+token.pickle
+gemini_key.txt
+credentials.json
+
+# --- SQLite Databases, Upload History & Logs ---
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+uploads_history.json
+*.log
+launcher.log
+web_app/app.log
+
+# --- Python Caches & Virtual Envs ---
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+ENV/
+.pytest_cache/
+
+# --- Node & Next.js Build Artifacts ---
+node_modules/
+frontend/node_modules/
+.next/
+frontend/.next/
+out/
+frontend/out/
+build/
+frontend/build/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+*.tsbuildinfo
+frontend/next-env.d.ts
+
+# --- Runtime Caches & Temporary Artifacts ---
+.cache_outro/
+.claude/
+scratch/
+web_app/cache/
+web_app/static/thumbnails/
+tools/
+
+# --- Operating System & IDE Files ---
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
