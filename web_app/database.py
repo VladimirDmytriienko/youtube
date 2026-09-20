@@ -5,7 +5,7 @@ import logging
 from datetime import datetime, timedelta
 from typing import Optional, Dict, List, Any
 
-DB_PATH = 'e:/youtube/web_app/scheduler.db'
+DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'scheduler.db').replace('\\', '/')
 logger = logging.getLogger("Database")
 
 def get_connection():

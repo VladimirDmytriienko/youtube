@@ -12,8 +12,9 @@ import database
 
 logger = logging.getLogger("AIAssistant")
 
-KEY_FILE = 'e:/youtube/gemini_key.txt'
-ENV_FILE = 'e:/youtube/.env'
+from core.config import ROOT_DIR
+KEY_FILE = os.path.join(ROOT_DIR, 'gemini_key.txt').replace('\\', '/')
+ENV_FILE = os.path.join(ROOT_DIR, '.env').replace('\\', '/')
 
 from core.ai_models import get_active_text_model, get_model_cascade, AVAILABLE_MODELS
 

@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 import database
-from core.config import BASE_DIR, THUMB_CACHE, logger
+from core.config import ROOT_DIR, BASE_DIR, THUMB_CACHE, logger
 from core.video_helpers import get_video_metadata, parse_description_file
 
 router = APIRouter()
@@ -320,7 +320,7 @@ def get_history():
 
 @router.post("/tools/launch-losslesscut")
 def launch_losslesscut():
-    exe_path = r"E:\youtube\tools\LosslessCut\LosslessCut.exe"
+    exe_path = os.path.join(ROOT_DIR, "tools", "LosslessCut", "LosslessCut.exe")
     if os.path.exists(exe_path):
         subprocess.Popen([exe_path], cwd=os.path.dirname(exe_path))
         return {"success": True, "message": "LosslessCut запущено"}

@@ -30,10 +30,10 @@ SCOPES = [
     'https://www.googleapis.com/auth/youtube.readonly'
 ]
 
-BASE_DIR = 'e:/youtube'
-CLIENT_SECRETS_FILE = os.path.join(BASE_DIR, 'client_secret.json')
-TOKEN_FILE = os.path.join(BASE_DIR, 'token.pickle')
-HISTORY_FILE = os.path.join(BASE_DIR, 'web_app', 'uploads_history.json')
+from core.config import ROOT_DIR
+CLIENT_SECRETS_FILE = os.path.join(ROOT_DIR, 'client_secret.json').replace('\\', '/')
+TOKEN_FILE = os.path.join(ROOT_DIR, 'token.pickle').replace('\\', '/')
+HISTORY_FILE = os.path.join(ROOT_DIR, 'web_app', 'uploads_history.json').replace('\\', '/')
 
 RETRIABLE_EXCEPTIONS = (
     socket.error,
