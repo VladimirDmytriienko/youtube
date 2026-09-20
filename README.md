@@ -1,14 +1,13 @@
 # 🎬 YouTube Studio Pro
 
-> ☕ **Creator Vibe-Coding Notice / Дисклеймер від автора:**  
+> ☕ **Creator Vibe-Coding Notice:**  
+> This project is 100% **pure vibe coding** made by a creator for fellow creators who want to automate the soul-crushing routine of video editing, highlight slicing, and Shorts production! 🚀  
 > 
-> **English:**  
-> This project is 100% **pure vibe coding** made by a creator for fellow creators who want to automate the soul-crushing routine of video editing, montage assembly, and Shorts production! 🚀  
-> If you've ever found yourself awake at 3 AM manually slicing hours of gameplay into 9:16 vertical clips, tweaking blur backgrounds, ducking audio, generating voiceovers, and re-typing tags/descriptions — this tool is your new superpower.  
-> Please don't judge the codebase too harshly through enterprise textbook dogmas: it was built for pure creator flow, high velocity, real content output, and honest fun! *Full transparency: zero warranty on code elegance or architectural purity — it works, it renders, and that's the whole point!* 😂 If this helps your channel, enjoy it, fork it, and feel free to contribute. PRs, issues, and creative suggestions are more than welcome! 🤝  
+> If you've ever found yourself awake at 3 AM manually cropping 16:9 gameplay into 9:16 vertical videos, tweaking blur backgrounds, ducking audio, generating AI voiceovers, and re-typing tags and descriptions — this tool is your new superpower.  
 > 
-> **Українська:**  
-> Цей проєкт — 100% **vibe coding** від кріейтора для кріейторів! Створений на чистому натхненні, щоб позбутися рутинної каторги монтажу: автоматична нарізка хайлайтів через AI Director, вертикальний 9:16 монтаж, озвучка, стильні штампи підписки та публікація в 1 клік. Не судіть код суворо: **за якість коду не ручаюся, отак от!** 😅 Головне, що воно реально працює, нарізає відоси і економить тонну часу. Беріть, користуйтеся, автоматизуйте свій продакшн і контриб'ютьте нові фічі! 💛💙  
+> **Real talk: don't judge the codebase too harshly.** I definitely don't vouch for pristine code quality or academic enterprise architecture — that's just how it is! 😅 It was built purely for fun, creative momentum, high-speed content delivery, and good vibes. It gets the job done, saves countless hours of editing, and that's all that matters.  
+> 
+> If you find this helpful, feel free to use it, share it, break it, improve it, and contribute. Pull requests, wild ideas, and feedback are always welcome! 🤝  
 > 
 > *Crafted with passion, caffeine, Gemini Multimodal AI, Next.js, and FFmpeg.* ✨
 
