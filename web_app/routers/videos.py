@@ -34,7 +34,7 @@ def list_videos():
     for item in os.listdir(BASE_DIR):
         item_path = os.path.join(BASE_DIR, item)
         if os.path.isdir(item_path):
-            if item.lower() in ('web_app', 'shorts', '.git', '.gemini', 'node_modules', 'cache'):
+            if item.lower() in ('web_app', 'shorts', '.git', '.gemini', 'node_modules', 'cache', 'mockups', '.cache'):
                 continue
             meta = parse_description_file(item_path)
             for f in os.listdir(item_path):

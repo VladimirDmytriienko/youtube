@@ -2,6 +2,9 @@
 # YouTube Studio Pro - Master Git Ignore
 # ==============================================================================
 
+# --- Dedicated Working Directory (ALL USER CONTENT, FOOTAGE & RENDERS) ---
+projects/
+
 # --- Media & Heavy Video/Audio Files (STRICTLY EXCLUDED) ---
 *.mp4
 *.mov
