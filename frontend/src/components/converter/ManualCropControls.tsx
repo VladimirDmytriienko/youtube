@@ -15,7 +15,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { VideoItem } from "@/types";
-import { OUTRO_STYLES, OUTRO_BG_MODES } from "./constants";
 
 export interface ManualCropControlsProps {
   startTime: number;
@@ -232,8 +231,8 @@ export function ManualCropControls({
               onChange={(e) => onWithOutroChange(e.target.checked)}
               className="w-4 h-4 rounded accent-primary cursor-pointer"
             />
-            <Bell className="w-3.5 h-3.5 text-amber-400" />
-            <span>Like & Subscribe аутро (останні 2.8с)</span>
+            <Bell className="w-3.5 h-3.5 text-red-500" />
+            <span>🔴 Живі кнопки YouTube (Like & Subscribe)</span>
           </label>
           <span className="text-[10px] text-muted-foreground font-mono">
             {withOutro ? "ВКЛ" : "ВИКЛ"}
@@ -241,37 +240,13 @@ export function ManualCropControls({
         </div>
 
         {withOutro && (
-          <div className="space-y-2.5 p-3 rounded-xl bg-muted/30 border border-border/60">
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-[10px] text-muted-foreground block mb-1 font-medium">Стиль картки:</label>
-                <select
-                  value={outroStyle}
-                  onChange={(e) => onOutroStyleChange(e.target.value)}
-                  className="w-full h-8 rounded-lg border border-border bg-background px-2 text-[11px] font-medium focus:ring-1 focus:ring-primary outline-none cursor-pointer"
-                >
-                  {OUTRO_STYLES.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.badge} {s.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-[10px] text-muted-foreground block mb-1 font-medium">Фоновий перехід:</label>
-                <select
-                  value={outroBg}
-                  onChange={(e) => onOutroBgChange(e.target.value)}
-                  className="w-full h-8 rounded-lg border border-border bg-background px-2 text-[11px] font-medium focus:ring-1 focus:ring-primary outline-none cursor-pointer"
-                >
-                  {OUTRO_BG_MODES.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+          <div className="p-2.5 rounded-xl bg-muted/30 border border-border/60 flex items-center justify-between">
+            <span className="text-[11px] text-muted-foreground">
+              Плаваючий стікер у зоні безпеки (знизу)
+            </span>
+            <div className="flex items-center gap-1.5 scale-90 origin-right">
+              <span className="px-2 py-0.5 rounded-full bg-white text-black font-black text-[10px] shadow-xs">👍 LIKE</span>
+              <span className="px-2 py-0.5 rounded-full bg-red-600 text-white font-black text-[10px] shadow-xs">▶ SUBSCRIBE</span>
             </div>
           </div>
         )}

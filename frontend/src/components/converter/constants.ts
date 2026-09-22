@@ -12,82 +12,28 @@ export const VOICE_OPTIONS = [
 
 export const OUTRO_STYLES: OutroStyleDef[] = [
   {
-    id: "youtube_classic",
-    name: "Червона Печать (LIKE & SUBSCRIBE)",
-    badge: "🔴 YouTube Red",
+    id: "youtube_animated_pills",
+    name: "Live YouTube Animation (Like & Subscribe)",
+    badge: "🔥 Live YouTube",
     lines: ["LIKE", "SUBSCRIBE"],
-    accent: "#FF2323",
+    accent: "#FF0000",
     lang: "en",
     title: "LIKE & SUBSCRIBE",
-    sub: "Double-border minimal stamp",
+    sub: "Анімовані кнопки YouTube з плавною появою та пульсацією (English)",
     btnSub: "SUBSCRIBE",
     btnLike: "LIKE",
-  },
-  {
-    id: "ukrainian_native",
-    name: "Золота Печать (ЛАЙК & ПІДПИСКА)",
-    badge: "🇺🇦 UA Gold",
-    lines: ["ЛАЙК", "ПІДПИСКА"],
-    accent: "#FFD700",
-    lang: "uk",
-    title: "ЛАЙК ТА ПІДПИСКА",
-    sub: "Нативна українська печать",
-    btnSub: "ПІДПИСКА",
-    btnLike: "ЛАЙК",
-  },
-  {
-    id: "ukrainian_red",
-    name: "Червона Печать (ЛАЙК & ПІДПИСКА)",
-    badge: "🇺🇦 UA Red",
-    lines: ["ЛАЙК", "ПІДПИСКА"],
-    accent: "#FF2323",
-    lang: "uk",
-    title: "ЛАЙК ТА ПІДПИСКА",
-    sub: "Червона українська печать",
-    btnSub: "ПІДПИСКА",
-    btnLike: "ЛАЙК",
-  },
-  {
-    id: "minimal_dark",
-    name: "Біла Печать (LIKE & SUBSCRIBE)",
-    badge: "⚪ Pure White",
-    lines: ["LIKE", "SUBSCRIBE"],
-    accent: "#FFFFFF",
-    lang: "en",
-    title: "LIKE & SUBSCRIBE",
-    sub: "Чистий білий мінімалізм",
-    btnSub: "SUBSCRIBE",
-    btnLike: "LIKE",
-  },
-  {
-    id: "minimal_dark_ua",
-    name: "Біла Печать (ЛАЙК & ПІДПИСКА)",
-    badge: "🇺🇦 Білий Монохром",
-    lines: ["ЛАЙК", "ПІДПИСКА"],
-    accent: "#FFFFFF",
-    lang: "uk",
-    title: "ЛАЙК ТА ПІДПИСКА",
-    sub: "Білий український монохром",
-    btnSub: "ПІДПИСКА",
-    btnLike: "ЛАЙК",
-  },
-  {
-    id: "hype_gaming",
-    name: "Неоновий Stamp (Neon Cyan)",
-    badge: "⚡ Neon Cyan",
-    lines: ["LIKE", "SUBSCRIBE"],
-    accent: "#00F0FF",
-    lang: "en",
-    title: "LIKE & SUBSCRIBE",
-    sub: "Електричний неоновий штамп",
-    btnSub: "SUBSCRIBE",
-    btnLike: "LIKE",
+    isAnimated: true,
   },
 ];
 
+export const OUTRO_PLACEMENT_MODES = [
+  { id: "bottom_floating", label: "На весь ролик знизу", desc: "Плаваючий стікер YouTube у зоні безпеки (без перекриття дій)" },
+  { id: "outro_card", label: "Тільки в кінці (аутро)", desc: "Поява на останніх 2.8с ролика" },
+];
+
 export const OUTRO_BG_MODES = [
-  { id: "deep_black", label: "Чорний екран (100%)", desc: "Плавний перехід у чорний фон" },
-  { id: "cinematic_dark", label: "Кіно-затемнення (78%)", desc: "М'яке затемнення геймплею" },
+  { id: "transparent", label: "Без затемнення (плаваючий стікер)", desc: "Чисті анімовані кнопки YouTube" },
+  { id: "deep_black", label: "Чорний екран", desc: "Перехід у чорний фон" },
 ];
 
 export interface DirectorPreset {
@@ -102,7 +48,19 @@ export const DIRECTOR_PRESETS: DirectorPreset[] = [
     id: "diverse_mix",
     name: "💥 Різноплановий мікс",
     badge: "Універсальний",
-    desc: "Збалансований коктейль: епічний хайлайт, фейл, чистий скіл та кульмінація."
+    desc: "Збалансований пул: 4-актні сюжетні арки, епічні сольні хайлайти та фейли."
+  },
+  {
+    id: "story_arc",
+    name: "🎬 4-актна драматургія (Story Arc)",
+    badge: "3-4 сцени",
+    desc: "Класична вірусна структура: Зав'язка ➡️ Ескалація ➡️ Кульмінація ➡️ Фінал з одного епізоду."
+  },
+  {
+    id: "highlights",
+    name: "🔥 Епічний сольний хайлайт",
+    badge: "1 суцільний дубль",
+    desc: "Концентрований адреналін: 1 суцільний відрізок (18–35с) без розривів та втрати темпу."
   },
   {
     id: "skills",
@@ -117,22 +75,10 @@ export const DIRECTOR_PRESETS: DirectorPreset[] = [
     desc: "Смішні моменти, несподівані помилки, аварії та безглузді ситуації."
   },
   {
-    id: "story_arc",
-    name: "🏆 «Сюжетний камбек» (Zero to Hero)",
-    badge: "Драматургія",
-    desc: "Сюжетна арка: провал або труднощі на старті ➡️ запекла боротьба ➡️ тріумфальний фінал."
-  },
-  {
     id: "contrast",
     name: "🎭 «Контраст» (Expectation vs Reality)",
     badge: "Контраст",
     desc: "Порівняння або різка зміна темпу: як планувалось vs як вийшло."
-  },
-  {
-    id: "highlights",
-    name: "🔥 «Топ найвибуховіших сцен»",
-    badge: "Хайлайти",
-    desc: "Концентрований адреналін, 3–5 найпотужніших моментів ролика."
   },
   {
     id: "chronological",

@@ -117,9 +117,9 @@ def process_video_pipeline(source_video: str, text: str, voice: str = "uk-UA-Ost
     # adelay expects ms: e.g. 800ms
     delay_ms = int(offset_sec * 1000)
     if delay_ms > 0:
-        audio_filter = f"[0:a:0]volume={game_vol}[a0];[1:a]adelay={delay_ms}|{delay_ms},volume={voice_vol}[a1];[a0][a1]amix=inputs=2:duration=first:dropout_transition=2[aout]"
+        audio_filter = f"[0:a:0]volume={game_vol}[a0];[1:a]adelay={delay_ms}|{delay_ms},volume={voice_vol}[a1];[a0][a1]amix=inputs=2:duration=first:dropout_transition=2,alimiter=limit=0.95[aout]"
     else:
-        audio_filter = f"[0:a:0]volume={game_vol}[a0];[1:a]volume={voice_vol}[a1];[a0][a1]amix=inputs=2:duration=first:dropout_transition=2[aout]"
+        audio_filter = f"[0:a:0]volume={game_vol}[a0];[1:a]volume={voice_vol}[a1];[a0][a1]amix=inputs=2:duration=first:dropout_transition=2,alimiter=limit=0.95[aout]"
         
     # Escape colon for ass filter in ffmpeg
     ass_escaped = ass_path.replace('\\', '/').replace(':', '\\:')

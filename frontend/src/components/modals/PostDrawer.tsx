@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
-import { X, ChevronLeft, ChevronRight, Check, Upload, Loader2, Trash2 } from "lucide-react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
+import { X, Minus, ChevronLeft, ChevronRight, Check, Upload, Loader2, Trash2, Archive, ArchiveRestore } from "lucide-react";
 import { VideoItem, VideoStatus, FrameCandidate, PostFormData, createInitialPostFormData } from "@/types";
 import { usePostDrawer, useVideoPlayer } from "@/hooks/useModals";
 import { useAppLanguage } from "@/hooks/useAppLanguage";
@@ -12,7 +12,10 @@ import {
   useScheduleUpload,
   useUpdateVideoStatus,
   useDeleteVideoMutation,
+  useArchiveVideoMutation,
+  useUnarchiveVideoMutation,
 } from "@/hooks/useApi";
+import { useBackgroundTasks } from "@/hooks/useBackgroundTasks";
 import { toast } from "sonner";
 import { ConfirmDeleteModal } from "@/components/modals/ConfirmDeleteModal";
 import { apiFetchJson, getThumbnailUrl } from "@/lib/api";
@@ -25,7 +28,16 @@ import { Step4Visibility } from "./post-drawer/Step4Visibility";
 import { VideoPreviewRail } from "./post-drawer/VideoPreviewRail";
 
 export function PostDrawer() {
-  const { isOpen, closeDrawer, videoPath: storePath, targetDate: storeDate } = usePostDrawer();
+  const {
+    isOpen,
+    isMinimized,
+    minimizeDrawer,
+    closeDrawer,
+    videoPath: storePath,
+    targetDate: storeDate,
+    initialMeta: storeInitialMeta,
+    initialLang: storeInitialLang,
+  } = usePostDrawer();
   const { openPlayer } = useVideoPlayer();
   const { lang, tr } = useAppLanguage();
   const { data: videos = [] } = useVideos(lang);
@@ -34,6 +46,10 @@ export function PostDrawer() {
   const updateStatusMutation = useUpdateVideoStatus();
   const scheduleUploadMutation = useScheduleUpload();
   const deleteVideoMutation = useDeleteVideoMutation();
+  const archiveVideoMutation = useArchiveVideoMutation();
+  const unarchiveVideoMutation = useUnarchiveVideoMutation();
+  const { startUpload } = useBackgroundTasks();
+  const draftsRef = useRef<Record<string, PostFormData>>({});
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const handleDeleteVideo = () => {
@@ -60,12 +76,37 @@ export function PostDrawer() {
   const updateForm = (patch: Partial<PostFormData> | ((prev: PostFormData) => Partial<PostFormData>)) => {
     setFormData((prev) => {
       const nextPatch = typeof patch === "function" ? patch(prev) : patch;
-      return { ...prev, ...nextPatch };
+      const updated = { ...prev, ...nextPatch };
+      if (selectedPath) {
+        draftsRef.current[selectedPath] = updated;
+      }
+      return updated;
     });
   };
 
-  // Active Video Item
+  // Active Video Item with fallback for freshly rendered AI shorts
   const activeVideo = videos.find((v) => v.path === selectedPath) || null;
+  const fallbackVideo: VideoItem | null = selectedPath
+    ? {
+        path: selectedPath,
+        filename: selectedPath.split(/[/\\]/).pop() || "video.mp4",
+        folder: "root",
+        size_mb: 0,
+        duration: 0,
+        duration_formatted: "00:00",
+        resolution: "1080x1920",
+        aspect_ratio: "9:16",
+        is_shorts: true,
+        title: selectedPath.split(/[/\\]/).pop()?.replace(/\.[^/.]+$/, "") || "video",
+        title_options: [],
+        description: "",
+        tags: [],
+        status: "planning" as const,
+        scheduled_for: null,
+        youtube_url: null,
+      }
+    : null;
+  const currentDisplayVideo = activeVideo || fallbackVideo;
 
   // Sync state when Drawer opens
   useEffect(() => {
@@ -74,12 +115,18 @@ export function PostDrawer() {
       const chosenPath = storePath || (videos.length > 0 ? videos[0].path : "");
       setSelectedPath(chosenPath);
 
+      if (chosenPath && draftsRef.current[chosenPath]) {
+        setFormData(draftsRef.current[chosenPath]);
+        return;
+      }
+
       // Initialize date
       const initialDate = storeDate || getTomorrowDateString();
 
       let initialMeta = createInitialPostFormData().metaData;
       let initialStatus: VideoStatus = "planning";
       let initialThumbPath: string | null = null;
+      let activeLang = storeInitialLang || "en";
 
       if (chosenPath) {
         const vid = videos.find((v) => v.path === chosenPath);
@@ -91,36 +138,52 @@ export function PostDrawer() {
           const cleanTitle = sanitizeTag(rawTitle);
           const cleanExistingTags = parseTags(existingTags).join(", ");
 
-          const defaultEnDesc = existingDesc || `Check out this highlight from ${rawTitle}! Subscribe for more daily videos and highlights. #Shorts #Viral`;
-          const defaultEnTags = cleanExistingTags || (cleanTitle ? `${cleanTitle}, shorts, highlights, viral, trending` : "shorts, highlights, viral, trending");
+          const defaultEnDesc = (vid.localizations?.en?.description) || existingDesc || `Check out this highlight from ${rawTitle}! Subscribe for more daily videos and highlights. #Shorts #Viral`;
+          const defaultEnTags = (vid.localizations?.en?.tags ? (Array.isArray(vid.localizations.en.tags) ? vid.localizations.en.tags.join(", ") : vid.localizations.en.tags) : "") || cleanExistingTags || (cleanTitle ? `${cleanTitle}, shorts, highlights, viral, trending` : "shorts, highlights, viral, trending");
 
-          const defaultUkDesc = existingDesc || `Дивіться яскравий момент із ${rawTitle}! Підписуйтесь на канал, щоб не пропустити нові випуски. #Shorts #Відео`;
-          const defaultUkTags = cleanExistingTags || (cleanTitle ? `${cleanTitle}, шортс, хайлайти, відео, тренди` : "шортс, хайлайти, відео, тренди");
+          const defaultUkDesc = (vid.localizations?.uk?.description) || existingDesc || `Дивіться яскравий момент із ${rawTitle}! Підписуйтесь на канал, щоб не пропустити нові випуски. #Shorts #Відео`;
+          const defaultUkTags = (vid.localizations?.uk?.tags ? (Array.isArray(vid.localizations.uk.tags) ? vid.localizations.uk.tags.join(", ") : vid.localizations.uk.tags) : "") || cleanExistingTags || (cleanTitle ? `${cleanTitle}, шортс, хайлайти, відео, тренди` : "шортс, хайлайти, відео, тренди");
 
           initialMeta = {
             en: {
-              title: rawTitle,
+              title: vid.localizations?.en?.title || rawTitle,
               desc: defaultEnDesc,
               tags: defaultEnTags,
             },
             uk: {
-              title: rawTitle,
+              title: vid.localizations?.uk?.title || rawTitle,
               desc: defaultUkDesc,
               tags: defaultUkTags,
             },
-            es: { title: "", desc: "", tags: "" },
-            de: { title: "", desc: "", tags: "" },
-            pt: { title: "", desc: "", tags: "" },
-            ja: { title: "", desc: "", tags: "" },
-            pl: { title: "", desc: "", tags: "" },
+            es: { title: vid.localizations?.es?.title || "", desc: vid.localizations?.es?.description || "", tags: (Array.isArray(vid.localizations?.es?.tags) ? vid.localizations.es.tags.join(", ") : vid.localizations?.es?.tags) || "" },
+            de: { title: vid.localizations?.de?.title || "", desc: vid.localizations?.de?.description || "", tags: (Array.isArray(vid.localizations?.de?.tags) ? vid.localizations.de.tags.join(", ") : vid.localizations?.de?.tags) || "" },
+            pt: { title: vid.localizations?.pt?.title || "", desc: vid.localizations?.pt?.description || "", tags: (Array.isArray(vid.localizations?.pt?.tags) ? vid.localizations.pt.tags.join(", ") : vid.localizations?.pt?.tags) || "" },
+            ja: { title: vid.localizations?.ja?.title || "", desc: vid.localizations?.ja?.description || "", tags: (Array.isArray(vid.localizations?.ja?.tags) ? vid.localizations.ja.tags.join(", ") : vid.localizations?.ja?.tags) || "" },
+            pl: { title: vid.localizations?.pl?.title || "", desc: vid.localizations?.pl?.description || "", tags: (Array.isArray(vid.localizations?.pl?.tags) ? vid.localizations.pl.tags.join(", ") : vid.localizations?.pl?.tags) || "" },
           };
           initialStatus = vid.status || "planning";
           initialThumbPath = vid.custom_thumb_path || null;
+          if (vid.default_lang && !storeInitialLang) {
+            activeLang = vid.default_lang;
+          }
         }
       }
 
-      setFormData({
-        metaLang: "en",
+      // If storeInitialMeta was passed directly from Studio (instant seed)
+      if (storeInitialMeta) {
+        for (const [code, meta] of Object.entries(storeInitialMeta) as [string, { title?: string; desc?: string; tags?: string }][]) {
+          if (meta && (meta.title || meta.desc || meta.tags)) {
+            initialMeta[code as any] = {
+              title: meta.title || initialMeta[code as any]?.title || "",
+              desc: meta.desc || initialMeta[code as any]?.desc || "",
+              tags: meta.tags || initialMeta[code as any]?.tags || "",
+            };
+          }
+        }
+      }
+
+      const initialData: PostFormData = {
+        metaLang: activeLang,
         metaData: initialMeta,
         candidates: [],
         selectedThumbPath: initialThumbPath,
@@ -131,9 +194,14 @@ export function PostDrawer() {
         privacy: "scheduled",
         dateStr: initialDate,
         timeStr: "15:00",
-      });
+      };
+
+      setFormData(initialData);
+      if (chosenPath) {
+        draftsRef.current[chosenPath] = initialData;
+      }
     }
-  }, [isOpen, storePath, storeDate, videos]);
+  }, [isOpen, storePath, storeDate, storeInitialMeta, storeInitialLang, videos]);
 
   if (!isOpen) return null;
 
@@ -218,7 +286,7 @@ export function PostDrawer() {
     );
   };
 
-  // Publish to YouTube
+  // Publish to YouTube in background
   const handlePublishOrSchedule = () => {
     if (!selectedPath) return;
     if (!auth?.authenticated) {
@@ -246,29 +314,24 @@ export function PostDrawer() {
       }
     }
 
-    scheduleUploadMutation.mutate(
-      {
-        video_path: selectedPath,
-        title: primaryTitle,
-        description: primaryDesc,
-        tags: primaryTags,
-        privacy: formData.privacy,
-        publish_at: scheduledIso,
-        is_shorts: !!activeVideo?.is_shorts,
-        default_lang: "en",
-        localizations: locMap,
-        custom_thumb_path: formData.selectedThumbPath,
-      },
-      {
-        onSuccess: () => {
-          toast.success("Відео успішно відправлено на YouTube (EN + локалізації)!");
-          closeDrawer();
-        },
-        onError: (err: any) => {
-          toast.error("Помилка публікації на YouTube", { description: err?.message });
-        },
-      }
-    );
+    startUpload({
+      video_path: selectedPath,
+      title: primaryTitle,
+      description: primaryDesc,
+      tags: primaryTags,
+      privacy: formData.privacy,
+      publish_at: scheduledIso,
+      is_shorts: !!currentDisplayVideo?.is_shorts,
+      default_lang: "en",
+      localizations: locMap,
+      custom_thumb_path: formData.selectedThumbPath,
+      archiveAfterPost: formData.archiveAfterPost,
+    });
+
+    if (selectedPath) {
+      delete draftsRef.current[selectedPath];
+    }
+    closeDrawer();
   };
 
   const steps = [
@@ -279,7 +342,12 @@ export function PostDrawer() {
   ];
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 lg:p-6 animate-in fade-in duration-200">
+    <div
+      onClick={minimizeDrawer}
+      className={`fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 lg:p-6 animate-in fade-in duration-200 ${
+        isMinimized ? "hidden pointer-events-none" : ""
+      }`}
+    >
       <div
         className="relative w-full max-w-5xl xl:max-w-6xl 2xl:max-w-[1240px] bg-card text-card-foreground border border-border shadow-2xl rounded-2xl overflow-hidden flex flex-col max-h-[92vh]"
         onClick={(e) => e.stopPropagation()}
@@ -288,11 +356,50 @@ export function PostDrawer() {
         <div className="px-5 py-3.5 border-b border-border flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2 truncate min-w-0">
             <h2 className="text-sm sm:text-base font-semibold text-foreground truncate">
-              {formData.metaData[formData.metaLang]?.title || activeVideo?.filename || "Студія публікації"}
+              {formData.metaData[formData.metaLang]?.title || currentDisplayVideo?.filename || "Студія публікації"}
             </h2>
+            {currentDisplayVideo?.is_archived && (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold text-amber-300 bg-amber-950/80 border border-amber-500/40 shadow-sm shrink-0">
+                📦 В архіві
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
+            {currentDisplayVideo?.is_archived ? (
+              <button
+                type="button"
+                onClick={() => {
+                  if (selectedPath) {
+                    unarchiveVideoMutation.mutate(selectedPath);
+                  }
+                }}
+                disabled={unarchiveVideoMutation.isPending}
+                className="h-8 px-3 rounded-full bg-amber-500/10 hover:bg-amber-500 hover:text-white text-amber-600 dark:text-amber-400 text-xs font-semibold flex items-center gap-1.5 transition active:scale-95 cursor-pointer disabled:opacity-50"
+                title="Відновити з архіву"
+              >
+                <ArchiveRestore className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Відновити з архіву</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  if (selectedPath) {
+                    archiveVideoMutation.mutate(selectedPath, {
+                      onSuccess: () => closeDrawer(),
+                    });
+                  }
+                }}
+                disabled={archiveVideoMutation.isPending}
+                className="h-8 px-3 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground text-xs font-medium flex items-center gap-1.5 transition active:scale-95 cursor-pointer disabled:opacity-50"
+                title="Перемістити в архів"
+              >
+                <Archive className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">В архів</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={() => setShowDeleteConfirm(true)}
@@ -305,9 +412,18 @@ export function PostDrawer() {
 
             <button
               type="button"
+              onClick={minimizeDrawer}
+              className="w-8 h-8 rounded-full hover:bg-accent text-muted-foreground hover:text-foreground flex items-center justify-center transition cursor-pointer shrink-0"
+              title="Згорнути вікно"
+            >
+              <Minus className="w-4 h-4" />
+            </button>
+
+            <button
+              type="button"
               onClick={closeDrawer}
               className="w-8 h-8 rounded-full hover:bg-accent text-muted-foreground hover:text-foreground flex items-center justify-center transition cursor-pointer shrink-0"
-              title="Close"
+              title="Закрити"
             >
               <X className="w-4 h-4" />
             </button>
@@ -375,7 +491,7 @@ export function PostDrawer() {
               <Step1Details
                 form={formData}
                 updateForm={updateForm}
-                video={activeVideo}
+                video={currentDisplayVideo}
                 isExtractingFrames={isExtractingFrames}
                 onExtractFrames={handleExtractFrames}
                 onUploadCustomThumb={handleUploadCustomThumb}
@@ -393,7 +509,7 @@ export function PostDrawer() {
 
             {currentStep === 3 && (
               <Step3Checks
-                video={activeVideo}
+                video={currentDisplayVideo}
                 form={formData}
                 updateForm={updateForm}
                 isSavingStatus={isSavingStatus}
@@ -417,7 +533,7 @@ export function PostDrawer() {
           {/* Right Column: Video Preview Rail */}
           <div className="lg:col-span-4 space-y-4">
             <VideoPreviewRail
-              video={activeVideo}
+              video={currentDisplayVideo}
               onOpenPlayer={openPlayer}
               customThumbUrl={formData.selectedThumbPath ? getThumbnailUrl(formData.selectedThumbPath) : null}
               title={formData.metaData[formData.metaLang]?.title}
@@ -468,20 +584,10 @@ export function PostDrawer() {
               <button
                 type="button"
                 onClick={handlePublishOrSchedule}
-                disabled={scheduleUploadMutation.isPending}
-                className="h-9 px-5 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold flex items-center gap-1.5 transition active:scale-95 shadow-md cursor-pointer disabled:opacity-50"
+                className="h-9 px-5 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold flex items-center gap-1.5 transition active:scale-95 shadow-md cursor-pointer"
               >
-                {scheduleUploadMutation.isPending ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Публікація...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>{formData.privacy === "scheduled" ? "Запланувати" : "Опублікувати"}</span>
-                    <span>↗</span>
-                  </>
-                )}
+                <span>{formData.privacy === "scheduled" ? "Запланувати у фоні" : "Опублікувати у фоні"}</span>
+                <span>↗</span>
               </button>
             )}
           </div>
@@ -492,7 +598,20 @@ export function PostDrawer() {
         isOpen={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
         onConfirm={handleDeleteVideo}
-        filename={activeVideo?.filename || ""}
+        onArchive={
+          currentDisplayVideo && !currentDisplayVideo.is_archived
+            ? () => {
+                archiveVideoMutation.mutate(currentDisplayVideo.path, {
+                  onSuccess: () => {
+                    setShowDeleteConfirm(false);
+                    closeDrawer();
+                  },
+                });
+              }
+            : undefined
+        }
+        isArchiving={archiveVideoMutation.isPending}
+        filename={currentDisplayVideo?.filename || ""}
         isDeleting={deleteVideoMutation.isPending}
       />
     </div>

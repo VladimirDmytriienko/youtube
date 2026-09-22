@@ -11,12 +11,13 @@ import { HistoryTab } from "@/components/tabs/HistoryTab";
 import { VideoPlayerModal } from "@/components/modals/VideoPlayerModal";
 import { PostDrawer } from "@/components/modals/PostDrawer";
 import { AiSettingsModal } from "@/components/modals/AiSettingsModal";
+import { BackgroundTasksDock } from "@/components/common/BackgroundTasksDock";
 import { useNavigationTab, usePostDrawer } from "@/hooks/useModals";
 import { useAppLanguage } from "@/hooks/useAppLanguage";
 
 export default function HomePage() {
   const { currentTab } = useNavigationTab();
-  const { openDrawer } = usePostDrawer();
+  const { openDrawer, videoPath: drawerVideoPath } = usePostDrawer();
   const { tr } = useAppLanguage();
 
   return (
@@ -74,14 +75,17 @@ export default function HomePage() {
       {/* Mobile Bottom Navigation Bar (Zero props!) */}
       <MobileBottomBar />
 
-      {/* Video Player Lightbox Modal (Zero props!) */}
-      <VideoPlayerModal />
-
-      {/* YouTube Studio Post & Scheduling Drawer (Zero props!) */}
-      <PostDrawer />
+      {/* YouTube Studio Post & Scheduling Drawer (Isolated instance per video!) */}
+      <PostDrawer key={drawerVideoPath || "empty-drawer"} />
 
       {/* Gemini AI Settings Modal (Zero props!) */}
       <AiSettingsModal />
+
+      {/* Video Player Lightbox Modal (Zero props!) */}
+      <VideoPlayerModal />
+
+      {/* Desktop Multitasking & Background Uploads Dock */}
+      <BackgroundTasksDock />
     </div>
   );
 }

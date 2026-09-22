@@ -6,14 +6,20 @@ import { NavTab } from "@/components/layout/Navigation";
 // 1. PostDrawer Modal State in React Query Cache
 export interface PostDrawerState {
   isOpen: boolean;
+  isMinimized: boolean;
   videoPath: string | null;
   targetDate: string | null;
+  initialMeta?: Record<string, { title: string; desc: string; tags: string }>;
+  initialLang?: string;
 }
 
 const initialDrawerState: PostDrawerState = {
   isOpen: false,
+  isMinimized: false,
   videoPath: null,
   targetDate: null,
+  initialMeta: undefined,
+  initialLang: undefined,
 };
 
 export const CLIENT_KEYS = {
@@ -35,28 +41,66 @@ export function usePostDrawer() {
     initialData: initialDrawerState,
   });
 
-  const openDrawer = (videoPath: string | null = null, targetDate: string | null = null) => {
+  const openDrawer = (
+    videoPath: string | null = null,
+    targetDate: string | null = null,
+    initialMeta?: Record<string, { title: string; desc: string; tags: string }>,
+    initialLang?: string
+  ) => {
     queryClient.setQueryData<PostDrawerState>(CLIENT_KEYS.postDrawer, {
       isOpen: true,
+      isMinimized: false,
       videoPath: videoPath || null,
       targetDate: targetDate || null,
+      initialMeta: initialMeta || undefined,
+      initialLang: initialLang || undefined,
     });
   };
 
   const closeDrawer = () => {
     queryClient.setQueryData<PostDrawerState>(CLIENT_KEYS.postDrawer, {
       isOpen: false,
+      isMinimized: false,
       videoPath: null,
       targetDate: null,
     });
   };
 
+  const minimizeDrawer = () => {
+    queryClient.setQueryData<PostDrawerState>(CLIENT_KEYS.postDrawer, (prev = initialDrawerState) => ({
+      ...prev,
+      isOpen: true,
+      isMinimized: true,
+    }));
+  };
+
+  const restoreDrawer = () => {
+    queryClient.setQueryData<PostDrawerState>(CLIENT_KEYS.postDrawer, (prev = initialDrawerState) => ({
+      ...prev,
+      isOpen: true,
+      isMinimized: false,
+    }));
+  };
+
+  const toggleMinimize = () => {
+    queryClient.setQueryData<PostDrawerState>(CLIENT_KEYS.postDrawer, (prev = initialDrawerState) => ({
+      ...prev,
+      isMinimized: !prev.isMinimized,
+    }));
+  };
+
   return {
     isOpen: data.isOpen,
+    isMinimized: !!data.isMinimized,
     videoPath: data.videoPath,
     targetDate: data.targetDate,
+    initialMeta: data.initialMeta,
+    initialLang: data.initialLang,
     openDrawer,
     closeDrawer,
+    minimizeDrawer,
+    restoreDrawer,
+    toggleMinimize,
   };
 }
 

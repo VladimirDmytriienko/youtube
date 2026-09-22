@@ -26,6 +26,7 @@ export interface VideoItem {
   default_lang?: string;
   localizations?: Record<string, VideoLocalization>;
   custom_thumb_path?: string;
+  is_archived?: boolean;
 }
 
 export interface HistoryRecord {
@@ -218,6 +219,10 @@ export interface PlannedShort {
   with_voiceover?: boolean;
   is_rendering?: boolean;
   rendered_path?: string;
+  rendered_description?: string;
+  rendered_tags?: string[];
+  rendered_localizations?: Record<string, any>;
+  rendered_default_lang?: string;
 }
 
 export interface ShortsPlan {
@@ -238,6 +243,7 @@ export interface PostFormData {
   privacy: string;
   dateStr: string;
   timeStr: string;
+  archiveAfterPost?: boolean;
 }
 
 export const createInitialPostFormData = (): PostFormData => ({
@@ -260,6 +266,7 @@ export const createInitialPostFormData = (): PostFormData => ({
   privacy: "scheduled",
   dateStr: "",
   timeStr: "15:00",
+  archiveAfterPost: false,
 });
 
 export interface OutroStyleDef {
@@ -273,6 +280,7 @@ export interface OutroStyleDef {
   sub: string;
   btnSub: string;
   btnLike: string;
+  isAnimated?: boolean;
 }
 
 export interface TimelineSegment {

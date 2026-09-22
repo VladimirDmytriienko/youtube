@@ -1,22 +1,26 @@
 "use client";
 
 import React from "react";
-import { Trash2, AlertTriangle, Loader2 } from "lucide-react";
+import { Trash2, AlertTriangle, Loader2, Archive } from "lucide-react";
 
 interface ConfirmDeleteModalProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: () => void;
+  onArchive?: () => void;
   filename: string;
   isDeleting?: boolean;
+  isArchiving?: boolean;
 }
 
 export function ConfirmDeleteModal({
   isOpen,
   onClose,
   onConfirm,
+  onArchive,
   filename,
   isDeleting = false,
+  isArchiving = false,
 }: ConfirmDeleteModalProps) {
   if (!isOpen) return null;
 
@@ -52,15 +56,35 @@ export function ConfirmDeleteModal({
           <button
             type="button"
             onClick={onClose}
-            disabled={isDeleting}
+            disabled={isDeleting || isArchiving}
             className="h-9 px-4 rounded-full border border-border hover:bg-accent text-foreground text-xs font-medium transition active:scale-95 cursor-pointer disabled:opacity-50"
           >
             Скасувати
           </button>
+          {onArchive && (
+            <button
+              type="button"
+              onClick={onArchive}
+              disabled={isDeleting || isArchiving}
+              className="h-9 px-4 rounded-full bg-secondary hover:bg-accent text-foreground text-xs font-semibold flex items-center gap-1.5 transition active:scale-95 cursor-pointer disabled:opacity-50"
+            >
+              {isArchiving ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>В архів...</span>
+                </>
+              ) : (
+                <>
+                  <Archive className="w-3.5 h-3.5" />
+                  <span>В архів (безпечно)</span>
+                </>
+              )}
+            </button>
+          )}
           <button
             type="button"
             onClick={onConfirm}
-            disabled={isDeleting}
+            disabled={isDeleting || isArchiving}
             className="h-9 px-4 rounded-full bg-destructive hover:bg-destructive/90 text-destructive-foreground text-xs font-semibold flex items-center gap-1.5 transition active:scale-95 shadow-sm cursor-pointer disabled:opacity-50"
           >
             {isDeleting ? (

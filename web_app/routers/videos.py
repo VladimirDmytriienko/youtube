@@ -1,5 +1,6 @@
 import os
 import re
+import shutil
 import subprocess
 from datetime import datetime
 from typing import Optional, List, Dict, Any
@@ -22,105 +23,109 @@ def get_config():
         "status": "ready"
     }
 
+def _build_video_item(
+    f: str,
+    v_path: str,
+    folder: str,
+    is_archived: bool,
+    meta: Optional[Dict[str, Any]] = None,
+    db_records: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
+    size_mb = round(os.path.getsize(v_path) / (1024 * 1024), 1)
+    v_info = get_video_metadata(v_path)
+
+    title_opts = meta.get("title_options") if meta else None
+    first_title = title_opts[0] if (title_opts and len(title_opts) > 0) else None
+
+    db_entry = db_records.get(v_path) if db_records else None
+    if not db_entry:
+        default_title = first_title or f
+        default_desc = meta.get("description", "") if meta else ""
+        default_tags = meta.get("tags", []) if meta else []
+        db_entry = database.upsert_record(
+            path=v_path,
+            filename=f,
+            title=default_title,
+            description=default_desc,
+            tags=default_tags,
+            is_shorts=v_info["is_shorts"],
+            status="planning"
+        )
+        if db_records is not None:
+            db_records[v_path] = db_entry
+
+    title = db_entry.get("title") or first_title or f
+    description = db_entry.get("description") or (meta.get("description", "") if meta else "")
+    tags = db_entry.get("tags") or (meta.get("tags", []) if meta else [])
+
+    return {
+        "filename": f,
+        "path": v_path,
+        "folder": folder,
+        "size_mb": size_mb,
+        "duration": v_info["duration"],
+        "duration_formatted": v_info["duration_formatted"],
+        "width": v_info["width"],
+        "height": v_info["height"],
+        "is_shorts": v_info["is_shorts"],
+        "aspect_ratio": v_info["aspect_ratio"],
+        "title": title,
+        "description": description,
+        "tags": tags,
+        "status": db_entry.get("status", "planning"),
+        "scheduled_for": db_entry.get("scheduled_for"),
+        "youtube_id": db_entry.get("youtube_id"),
+        "youtube_url": db_entry.get("youtube_url"),
+        "default_lang": db_entry.get("default_lang", "en"),
+        "localizations": db_entry.get("localizations"),
+        "custom_thumb_path": db_entry.get("custom_thumb_path"),
+        "has_meta_file": bool(meta and (meta.get("title_options") or meta.get("description"))),
+        "is_archived": is_archived
+    }
+
 @router.get("/videos")
 def list_videos():
-    """Scans BASE_DIR, joins with SQLite database for statuses, titles, and schedules."""
+    """Scans BASE_DIR including archive subfolders, joins with SQLite database for statuses, titles, and schedules."""
     db_records = database.get_all_records()
     results = []
 
     if not os.path.exists(BASE_DIR):
         return results
 
+    video_exts = ('.mp4', '.mov', '.mkv', '.avi', '.webm')
+
     for item in os.listdir(BASE_DIR):
         item_path = os.path.join(BASE_DIR, item)
         if os.path.isdir(item_path):
             if item.lower() in ('web_app', 'shorts', '.git', '.gemini', 'node_modules', 'cache', 'mockups', '.cache'):
                 continue
+
+            # Root archive directory
+            if item.lower() == 'archive':
+                for f in os.listdir(item_path):
+                    if f.lower().endswith(video_exts):
+                        v_path = os.path.join(item_path, f).replace('\\', '/')
+                        results.append(_build_video_item(f, v_path, folder="root", is_archived=True, meta=None, db_records=db_records))
+                continue
+
             meta = parse_description_file(item_path)
             for f in os.listdir(item_path):
-                if f.lower().endswith(('.mp4', '.mov', '.mkv')):
-                    v_path = os.path.join(item_path, f).replace('\\', '/')
-                    size_mb = round(os.path.getsize(v_path) / (1024 * 1024), 1)
-                    v_info = get_video_metadata(v_path)
-                    
-                    db_entry = db_records.get(v_path)
-                    if not db_entry:
-                        default_title = meta["title_options"][0] if meta["title_options"] else f
-                        db_entry = database.upsert_record(
-                            path=v_path,
-                            filename=f,
-                            title=default_title,
-                            description=meta["description"],
-                            tags=meta["tags"],
-                            is_shorts=v_info["is_shorts"],
-                            status="planning"
-                        )
-                        db_records[v_path] = db_entry
-                    
-                    results.append({
-                        "filename": f,
-                        "path": v_path,
-                        "folder": item,
-                        "size_mb": size_mb,
-                        "duration": v_info["duration"],
-                        "duration_formatted": v_info["duration_formatted"],
-                        "width": v_info["width"],
-                        "height": v_info["height"],
-                        "is_shorts": v_info["is_shorts"],
-                        "aspect_ratio": v_info["aspect_ratio"],
-                        "title": db_entry.get("title") or (meta["title_options"][0] if meta["title_options"] else f),
-                        "description": db_entry.get("description") or meta["description"],
-                        "tags": db_entry.get("tags") or meta["tags"],
-                        "status": db_entry.get("status", "planning"),
-                        "scheduled_for": db_entry.get("scheduled_for"),
-                        "youtube_id": db_entry.get("youtube_id"),
-                        "youtube_url": db_entry.get("youtube_url"),
-                        "default_lang": db_entry.get("default_lang", "en"),
-                        "localizations": db_entry.get("localizations"),
-                        "custom_thumb_path": db_entry.get("custom_thumb_path"),
-                        "has_meta_file": bool(meta["title_options"] or meta["description"])
-                    })
-        elif item.lower().endswith(('.mp4', '.mov', '.mkv')):
-            v_path = os.path.join(BASE_DIR, item).replace('\\', '/')
-            size_mb = round(os.path.getsize(v_path) / (1024 * 1024), 1)
-            v_info = get_video_metadata(v_path)
-            
-            db_entry = db_records.get(v_path)
-            if not db_entry:
-                db_entry = database.upsert_record(
-                    path=v_path,
-                    filename=item,
-                    title=item,
-                    description="",
-                    tags=[],
-                    is_shorts=v_info["is_shorts"],
-                    status="planning"
-                )
-                db_records[v_path] = db_entry
+                f_path = os.path.join(item_path, f)
+                if os.path.isdir(f_path):
+                    # Subfolder archive within project folder
+                    if f.lower() == 'archive':
+                        for af in os.listdir(f_path):
+                            if af.lower().endswith(video_exts):
+                                v_path = os.path.join(f_path, af).replace('\\', '/')
+                                results.append(_build_video_item(af, v_path, folder=item, is_archived=True, meta=meta, db_records=db_records))
+                elif f.lower().endswith(video_exts):
+                    v_path = f_path.replace('\\', '/')
+                    results.append(_build_video_item(f, v_path, folder=item, is_archived=False, meta=meta, db_records=db_records))
 
-            results.append({
-                "filename": item,
-                "path": v_path,
-                "folder": "root",
-                "size_mb": size_mb,
-                "duration": v_info["duration"],
-                "duration_formatted": v_info["duration_formatted"],
-                "width": v_info["width"],
-                "height": v_info["height"],
-                "is_shorts": v_info["is_shorts"],
-                "aspect_ratio": v_info["aspect_ratio"],
-                "title": db_entry.get("title") or item,
-                "description": db_entry.get("description", ""),
-                "tags": db_entry.get("tags", []),
-                "status": db_entry.get("status", "planning"),
-                "scheduled_for": db_entry.get("scheduled_for"),
-                "youtube_id": db_entry.get("youtube_id"),
-                "youtube_url": db_entry.get("youtube_url"),
-                "default_lang": db_entry.get("default_lang", "en"),
-                "localizations": db_entry.get("localizations"),
-                "custom_thumb_path": db_entry.get("custom_thumb_path"),
-                "has_meta_file": False
-            })
+        elif item.lower().endswith(video_exts):
+            v_path = os.path.join(BASE_DIR, item).replace('\\', '/')
+            results.append(_build_video_item(item, v_path, folder="root", is_archived=False, meta=None, db_records=db_records))
+
     return results
 
 @router.get("/thumbnail")
@@ -302,11 +307,134 @@ def delete_video(req: DeleteVideoRequest):
     try:
         os.remove(abs_path)
         logger.info(f"Successfully deleted local video file: {abs_path}")
+        parent_dir = os.path.dirname(abs_path)
+        if os.path.basename(parent_dir).lower() == 'archive' and os.path.exists(parent_dir) and not os.listdir(parent_dir):
+            try:
+                os.rmdir(parent_dir)
+            except Exception:
+                pass
     except Exception as e:
         logger.error(f"Failed to delete file {abs_path}: {e}")
         raise HTTPException(status_code=500, detail=f"Помилка видалення файлу з диска: {str(e)}")
 
     return {"success": True, "message": f"Файл {filename} успішно видалено з диска"}
+
+class ArchiveVideoRequest(BaseModel):
+    path: str
+
+@router.post("/videos/archive")
+def archive_video(req: ArchiveVideoRequest):
+    raw_path = req.path.replace('\\', '/')
+    abs_path = os.path.abspath(raw_path)
+    abs_base = os.path.abspath(BASE_DIR)
+
+    if not abs_path.lower().startswith(abs_base.lower()):
+        raise HTTPException(status_code=400, detail="Неприпустимий шлях до файлу")
+
+    if not os.path.exists(abs_path) or not os.path.isfile(abs_path):
+        raise HTTPException(status_code=404, detail="Файл не знайдено на локальному диску")
+
+    video_exts = ('.mp4', '.mov', '.mkv', '.avi', '.webm')
+    if not abs_path.lower().endswith(video_exts):
+        raise HTTPException(status_code=400, detail="Файл не є відеофайлом")
+
+    parent_dir = os.path.dirname(abs_path)
+    if os.path.basename(parent_dir).lower() == 'archive':
+        return {
+            "success": True,
+            "message": "Файл уже знаходиться в архіві",
+            "path": raw_path,
+            "is_archived": True
+        }
+
+    archive_dir = os.path.join(parent_dir, "archive")
+    os.makedirs(archive_dir, exist_ok=True)
+
+    filename = os.path.basename(abs_path)
+    target_path = os.path.join(archive_dir, filename)
+
+    if os.path.exists(target_path):
+        name, ext = os.path.splitext(filename)
+        timestamp = int(datetime.utcnow().timestamp())
+        target_path = os.path.join(archive_dir, f"{name}_{timestamp}{ext}")
+
+    try:
+        shutil.move(abs_path, target_path)
+        logger.info(f"Moved video to archive: {abs_path} -> {target_path}")
+    except Exception as e:
+        logger.error(f"Failed to move file to archive {abs_path}: {e}")
+        raise HTTPException(status_code=500, detail=f"Помилка переміщення файлу в архів: {str(e)}")
+
+    norm_target = target_path.replace('\\', '/')
+    try:
+        database.move_record(raw_path, norm_target)
+    except Exception as e:
+        logger.warning(f"Error updating database path for {raw_path} -> {norm_target}: {e}")
+
+    return {
+        "success": True,
+        "message": f"Файл {filename} успішно переміщено в архів",
+        "old_path": raw_path,
+        "path": norm_target,
+        "is_archived": True
+    }
+
+@router.post("/videos/unarchive")
+def unarchive_video(req: ArchiveVideoRequest):
+    raw_path = req.path.replace('\\', '/')
+    abs_path = os.path.abspath(raw_path)
+    abs_base = os.path.abspath(BASE_DIR)
+
+    if not abs_path.lower().startswith(abs_base.lower()):
+        raise HTTPException(status_code=400, detail="Неприпустимий шлях до файлу")
+
+    if not os.path.exists(abs_path) or not os.path.isfile(abs_path):
+        raise HTTPException(status_code=404, detail="Файл не знайдено на локальному диску")
+
+    video_exts = ('.mp4', '.mov', '.mkv', '.avi', '.webm')
+    if not abs_path.lower().endswith(video_exts):
+        raise HTTPException(status_code=400, detail="Файл не є відеофайлом")
+
+    archive_dir = os.path.dirname(abs_path)
+    if os.path.basename(archive_dir).lower() != 'archive':
+        raise HTTPException(status_code=400, detail="Файл не знаходиться в папці архіву")
+
+    parent_dir = os.path.dirname(archive_dir)
+    filename = os.path.basename(abs_path)
+    target_path = os.path.join(parent_dir, filename)
+
+    if os.path.exists(target_path):
+        name, ext = os.path.splitext(filename)
+        timestamp = int(datetime.utcnow().timestamp())
+        target_path = os.path.join(parent_dir, f"{name}_{timestamp}{ext}")
+
+    try:
+        shutil.move(abs_path, target_path)
+        logger.info(f"Restored video from archive: {abs_path} -> {target_path}")
+    except Exception as e:
+        logger.error(f"Failed to restore file from archive {abs_path}: {e}")
+        raise HTTPException(status_code=500, detail=f"Помилка відновлення файлу з архіву: {str(e)}")
+
+    norm_target = target_path.replace('\\', '/')
+    try:
+        database.move_record(raw_path, norm_target)
+    except Exception as e:
+        logger.warning(f"Error updating database path for {raw_path} -> {norm_target}: {e}")
+
+    # Remove archive directory if it is now empty
+    try:
+        if os.path.exists(archive_dir) and not os.listdir(archive_dir):
+            os.rmdir(archive_dir)
+    except Exception as e:
+        logger.debug(f"Could not remove empty archive dir {archive_dir}: {e}")
+
+    return {
+        "success": True,
+        "message": f"Файл {filename} успішно відновлено з архіву",
+        "old_path": raw_path,
+        "path": norm_target,
+        "is_archived": False
+    }
 
 @router.get("/calendar")
 def get_calendar():

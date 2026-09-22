@@ -68,7 +68,8 @@ export function ConverterTab({ initialVideoPath }: ConverterTabProps = {}) {
 
   // Outro CTA State
   const [withOutro, setWithOutro] = useState<boolean>(true);
-  const [outroStyle, setOutroStyle] = useState<string>("youtube_classic");
+  const [outroStyle, setOutroStyle] = useState<string>("youtube_animated_pills");
+  const [outroMode, setOutroMode] = useState<string>("bottom_floating");
   const [outroBg, setOutroBg] = useState<string>("deep_black");
   const [isApplyingOutro, setIsApplyingOutro] = useState<boolean>(false);
 
@@ -212,6 +213,10 @@ export function ConverterTab({ initialVideoPath }: ConverterTabProps = {}) {
         path: string;
         filename: string;
         title: string;
+        description?: string;
+        tags?: string[];
+        localizations?: Record<string, any>;
+        default_lang?: string;
       }>("/api/ai/render-planned-short", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -230,7 +235,13 @@ export function ConverterTab({ initialVideoPath }: ConverterTabProps = {}) {
           dim: dimPercent / 100,
           with_outro: withOutro,
           outro_style: outroStyle,
+          outro_mode: outroMode,
           outro_bg: outroBg,
+          hook: shortItem.hook,
+          rationale: shortItem.rationale,
+          detected_game: timelineData?.detected_game,
+          badge: shortItem.badge,
+          language: shortsLanguage,
         }),
       });
 
@@ -241,7 +252,16 @@ export function ConverterTab({ initialVideoPath }: ConverterTabProps = {}) {
           return {
             ...prev,
             shorts: prev.shorts.map((s) =>
-              s.id === shortItem.id ? { ...s, rendered_path: res.path } : s
+              s.id === shortItem.id
+                ? {
+                    ...s,
+                    rendered_path: res.path,
+                    rendered_description: res.description,
+                    rendered_tags: res.tags,
+                    rendered_localizations: res.localizations,
+                    rendered_default_lang: res.default_lang,
+                  }
+                : s
             ),
           };
         });
@@ -252,6 +272,55 @@ export function ConverterTab({ initialVideoPath }: ConverterTabProps = {}) {
     } finally {
       setRenderingShortId(null);
     }
+  };
+
+  const handleOpenDrawerFromStudio = (path: string, item?: PlannedShort) => {
+    let initialMeta: Record<string, { title: string; desc: string; tags: string }> | undefined = undefined;
+
+    if (item) {
+      const cleanTitle = item.title.includes("#Shorts") ? item.title : `${item.title} #Shorts`;
+      const detectedGame = timelineData?.detected_game || "";
+
+      // Ukrainian version
+      const ukDesc = item.rendered_description && item.rendered_default_lang === "uk"
+        ? item.rendered_description
+        : (item.rendered_localizations?.uk?.description || (
+            `⚡ ${item.hook || "Дивіться яскравий момент!"}\n\n${item.voiceover_script || item.rationale || ""}\n\n${detectedGame ? `🎮 Гра: ${detectedGame}\n` : ""}💬 Як вам цей момент? Пишіть у коментарях!\n🔔 Підписуйтесь на канал!\n\n#Shorts #Хайлайти #Відео #Геймінг`
+          ));
+      const ukTags = (item.rendered_tags && item.rendered_default_lang === "uk")
+        ? item.rendered_tags.join(", ")
+        : (item.rendered_localizations?.uk?.tags ? (Array.isArray(item.rendered_localizations.uk.tags) ? item.rendered_localizations.uk.tags.join(", ") : item.rendered_localizations.uk.tags) : `Shorts, Хайлайти, Відео, ${detectedGame || "Геймінг"}`);
+
+      // English version
+      const enDesc = item.rendered_description && item.rendered_default_lang === "en"
+        ? item.rendered_description
+        : (item.rendered_localizations?.en?.description || (
+            `⚡ ${item.hook || "Check out this highlight!"}\n\n${item.voiceover_script || item.rationale || ""}\n\n${detectedGame ? `🎮 Game: ${detectedGame}\n` : ""}💬 What do you think about this moment? Leave a comment below!\n🔔 Subscribe for more daily shorts!\n\n#Shorts #Highlights #Gaming #Viral`
+          ));
+      const enTags = (item.rendered_tags && item.rendered_default_lang === "en")
+        ? item.rendered_tags.join(", ")
+        : (item.rendered_localizations?.en?.tags ? (Array.isArray(item.rendered_localizations.en.tags) ? item.rendered_localizations.en.tags.join(", ") : item.rendered_localizations.en.tags) : `Shorts, Highlights, Gaming, Viral, ${detectedGame || "Gaming"}`);
+
+      initialMeta = {
+        en: {
+          title: item.rendered_localizations?.en?.title || cleanTitle,
+          desc: enDesc,
+          tags: enTags,
+        },
+        uk: {
+          title: item.rendered_localizations?.uk?.title || cleanTitle,
+          desc: ukDesc,
+          tags: ukTags,
+        },
+        es: { title: "", desc: "", tags: "" },
+        de: { title: "", desc: "", tags: "" },
+        pt: { title: "", desc: "", tags: "" },
+        ja: { title: "", desc: "", tags: "" },
+        pl: { title: "", desc: "", tags: "" },
+      };
+    }
+
+    openDrawer(path, null, initialMeta, shortsLanguage);
   };
 
   // 4. Batch render all recommended Shorts
@@ -312,6 +381,7 @@ export function ConverterTab({ initialVideoPath }: ConverterTabProps = {}) {
           lang: lang,
           with_outro: withOutro,
           outro_style: outroStyle,
+          outro_mode: outroMode,
           outro_bg: outroBg,
         }),
       });
@@ -350,6 +420,7 @@ export function ConverterTab({ initialVideoPath }: ConverterTabProps = {}) {
         body: JSON.stringify({
           video_path: path,
           style_key: outroStyle,
+          mode: outroMode,
           bg_mode: outroBg,
           outro_duration: 2.8,
           lang: shortsLanguage,
@@ -511,7 +582,7 @@ export function ConverterTab({ initialVideoPath }: ConverterTabProps = {}) {
           onApplyOutro={handleApplyOutro}
           isApplyingOutro={isApplyingOutro}
           onOpenPlayer={openPlayer}
-          onOpenDrawer={openDrawer}
+          onOpenDrawer={handleOpenDrawerFromStudio}
           onSetManualFromEvent={handleSetManualFromEvent}
           formatTime={formatTime}
         />
@@ -563,6 +634,8 @@ export function ConverterTab({ initialVideoPath }: ConverterTabProps = {}) {
               yPosPercent={yPosPercent}
               outroStyle={outroStyle}
               onOutroStyleChange={setOutroStyle}
+              outroMode={outroMode}
+              onOutroModeChange={setOutroMode}
               outroBg={outroBg}
               onOutroBgChange={setOutroBg}
               activeVideoPath={activeVideo?.path}

@@ -96,7 +96,7 @@ export function AiSettingsModal() {
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-[75] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150">
       <div
         className="w-full max-w-xl max-h-[92vh] overflow-y-auto rounded-2xl bg-card border border-border shadow-2xl p-6 relative space-y-5 animate-in zoom-in-95 duration-200 scrollbar-thin"
         onClick={(e) => e.stopPropagation()}

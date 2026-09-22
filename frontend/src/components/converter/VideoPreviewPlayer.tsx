@@ -10,10 +10,12 @@ export interface VideoPreviewPlayerProps {
   dimPercent: number;
   zoom: number;
   yPosPercent: number;
-  outroStyle: string;
-  onOutroStyleChange: (style: string) => void;
-  outroBg: string;
-  onOutroBgChange: (bg: string) => void;
+  outroStyle?: string;
+  onOutroStyleChange?: (style: string) => void;
+  outroMode?: string;
+  onOutroModeChange?: (mode: string) => void;
+  outroBg?: string;
+  onOutroBgChange?: (bg: string) => void;
   activeVideoPath?: string;
   onApplyOutro: (targetVideoPath?: string) => void;
   isApplyingOutro: boolean;
@@ -25,8 +27,10 @@ export function VideoPreviewPlayer({
   dimPercent,
   zoom,
   yPosPercent,
-  outroStyle,
+  outroStyle = "youtube_animated_pills",
   onOutroStyleChange,
+  outroMode = "bottom_floating",
+  onOutroModeChange,
   outroBg,
   onOutroBgChange,
   activeVideoPath,
@@ -41,12 +45,12 @@ export function VideoPreviewPlayer({
           <span>Живий макет Shorts (9:16)</span>
         </h3>
         <p className="text-[11px] text-muted-foreground mt-0.5">
-          Прев'ю миттєво реагує на зміну масштабу, позиції та блюру
+          Прев'ю миттєво реагує на зміну масштабу, позиції та анімованих кнопок
         </p>
       </div>
 
       {/* 9:16 Mockup Frame */}
-      <div className="relative w-[210px] h-[373px] sm:w-[240px] sm:h-[426px] rounded-2xl overflow-hidden border-2 border-border/80 shadow-xl bg-black flex items-center justify-center">
+      <div className="relative w-[210px] h-[373px] sm:w-[240px] sm:h-[426px] rounded-2xl overflow-hidden border-2 border-border/80 shadow-xl bg-black flex items-center justify-center select-none">
         {thumbUrl ? (
           <>
             {/* Background Blurred Image */}
@@ -76,6 +80,22 @@ export function VideoPreviewPlayer({
                 }}
               />
             </div>
+
+            {/* Live Animated YouTube Buttons at Lowered Bottom Safe Zone */}
+            <div className="absolute bottom-5 inset-x-0 flex items-center justify-center pointer-events-none z-20 transition-all">
+              <div className="flex items-center gap-1.5 drop-shadow-md scale-[0.80] sm:scale-90 transition-transform">
+                {/* White Pill: LIKE */}
+                <div className="flex items-center justify-center gap-1 px-2.5 py-1 rounded-full bg-white text-neutral-900 border border-neutral-200 shadow font-bold text-[10px] animate-pulse">
+                  <span>👍</span>
+                  <span>LIKE</span>
+                </div>
+                {/* Red Pill: SUBSCRIBE */}
+                <div className="flex items-center justify-center gap-1 px-3 py-1 rounded-full bg-red-600 text-white border border-red-700 shadow font-bold text-[10px] animate-bounce">
+                  <span className="text-[8px]">▶</span>
+                  <span>SUBSCRIBE</span>
+                </div>
+              </div>
+            </div>
           </>
         ) : (
           <div className="text-center p-4">
@@ -89,6 +109,8 @@ export function VideoPreviewPlayer({
       <OutroStampStudio
         outroStyle={outroStyle}
         onOutroStyleChange={onOutroStyleChange}
+        outroMode={outroMode}
+        onOutroModeChange={onOutroModeChange}
         outroBg={outroBg}
         onOutroBgChange={onOutroBgChange}
         activeVideoPath={activeVideoPath}

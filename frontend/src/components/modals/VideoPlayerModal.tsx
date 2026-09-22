@@ -15,7 +15,28 @@ export function VideoPlayerModal() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const deleteVideoMutation = useDeleteVideoMutation();
 
-  const video = videos.find((v) => v.path === videoPath) || null;
+  const fallbackVideo = videoPath
+    ? {
+        path: videoPath,
+        filename: videoPath.split(/[/\\]/).pop() || "Video",
+        folder: "root",
+        size_mb: 0,
+        duration: 0,
+        duration_formatted: "0:00",
+        resolution: "1080x1920",
+        aspect_ratio: "9:16",
+        is_shorts: true,
+        title: videoPath.split(/[/\\]/).pop()?.replace(/\.[^/.]+$/, "") || "Video",
+        title_options: [],
+        description: "",
+        tags: [],
+        status: "planning" as const,
+        scheduled_for: null,
+        youtube_url: null,
+      }
+    : null;
+
+  const video = videos.find((v) => v.path === videoPath) || fallbackVideo;
 
   if (!isOpen || !video) return null;
 
@@ -37,7 +58,7 @@ export function VideoPlayerModal() {
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-150"
+      className="fixed inset-0 z-[80] bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-150"
       onClick={closePlayer}
     >
       <div

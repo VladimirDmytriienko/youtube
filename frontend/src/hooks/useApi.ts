@@ -257,6 +257,79 @@ export function useDeleteVideoMutation() {
   });
 }
 
+// 9b. Mutation: Archive Video (move to local archive folder)
+export function useArchiveVideoMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (path: string) => {
+      return apiFetchJson<{ success: boolean; message?: string; path: string; old_path: string }>(
+        "/api/videos/archive",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ path }),
+        }
+      );
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.videos });
+      queryClient.invalidateQueries({ queryKey: queryKeys.calendar });
+      queryClient.invalidateQueries({ queryKey: ["history"] });
+      toast.success(data?.message || "Відео переміщено в архів", {
+        action: data?.path ? {
+          label: "Скасувати",
+          onClick: async () => {
+            try {
+              await apiFetchJson("/api/videos/unarchive", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ path: data.path }),
+              });
+              queryClient.invalidateQueries({ queryKey: queryKeys.videos });
+              queryClient.invalidateQueries({ queryKey: queryKeys.calendar });
+              queryClient.invalidateQueries({ queryKey: ["history"] });
+              toast.info("Дію скасовано: відео відновлено з архіву");
+            } catch (e: any) {
+              toast.error(e?.message || "Не вдалося відновити відео");
+            }
+          }
+        } : undefined
+      });
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || "Помилка переміщення відео в архів");
+    },
+  });
+}
+
+// 9c. Mutation: Unarchive Video (restore from local archive folder)
+export function useUnarchiveVideoMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (path: string) => {
+      return apiFetchJson<{ success: boolean; message?: string; path: string; old_path: string }>(
+        "/api/videos/unarchive",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ path }),
+        }
+      );
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.videos });
+      queryClient.invalidateQueries({ queryKey: queryKeys.calendar });
+      queryClient.invalidateQueries({ queryKey: ["history"] });
+      toast.success(data?.message || "Відео успішно відновлено з архіву");
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || "Помилка відновлення відео з архіву");
+    },
+  });
+}
+
 // 10. Mutation: Force Status Synchronization
 export function useSyncStatusMutation() {
   const queryClient = useQueryClient();

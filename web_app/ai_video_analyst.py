@@ -64,14 +64,14 @@ def analyze_video_timeline(
 
     # Adaptive sample density for short, medium, and long 15-20+ min videos
     if duration <= 120:
-        optimal_samples = min(30, max(15, target_samples))
+        optimal_samples = min(35, max(18, target_samples))
     elif duration <= 600:
-        optimal_samples = min(50, max(25, target_samples))
+        optimal_samples = min(60, max(30, target_samples))
     else:
-        # Long video (10-25+ minutes): sample 50 to 75 frames
-        optimal_samples = min(75, max(45, target_samples))
+        # Long video (10-25+ minutes): sample 55 to 80 frames
+        optimal_samples = min(80, max(50, target_samples))
 
-    interval = max(2.5, duration / float(optimal_samples))
+    interval = max(2.0, duration / float(optimal_samples))
 
     sample_times = []
     curr = 1.0
@@ -123,18 +123,23 @@ Carefully analyze the timeline from start to finish.
 YOUR MISSION (STAGE 1 - MULTIMODAL TIMELINE BREAKDOWN):
 1. Detect Subject, Genre & Environment:
    Accurately identify what is happening in the video (e.g. Gaming, Skateboarding, Motorsport/Racing, Combat Sports, IRL, Extreme Sports, Tech, etc.), the setting/environment, and the primary subjects or players.
-2. Identify Chronological Key Micro-Moments & Peaks:
-   Find all significant high-energy, dramatic, clutch, or comical moments across the entire video:
-   - High-energy action peaks (insane maneuvers, clutch execution, high-speed flow, finisher moves)
-   - Dramatic impacts, collisions, fails, wipeouts, or comical bloopers
-   - Tension builders, setup phases, and climactic conclusions
+
+2. Identify Chronological Key Micro-Moments, Action Sequences & Narrative Beats:
+   Find all significant high-energy, dramatic, clutch, or comical moments across the entire video.
+   
+   STRICT DEAD AIR EXCLUSION RULE:
+   Completely IGNORE and EXCLUDE static menus, loading screens, respawn countdowns, pause screens, and uneventful driving/walking in a straight line with zero tension or competition!
+
    For each moment, specify:
-   - "start_sec": float start timestamp
-   - "end_sec": float end timestamp (tight, high-impact slice, typically 5 to 25 seconds)
+   - "start_sec": float start timestamp (start 1-2s before action initiates for instant hook)
+   - "end_sec": float end timestamp (end 1s after reaction/aftermath settles; tight, high-impact slice 4 to 28s)
    - "title": punchy, descriptive headline of the action
    - "intensity": score from 1.0 to 10.0 of visual excitement/impact
    - "type": "highlight" | "skill" | "fail" | "clutch" | "humor" | "climax" | "buildup"
+   - "cluster_id": identifier of the action event or run it belongs to (e.g. "Race 1", "Stunt Session A", "Final Lap Battle")
+   - "beat": "hook" | "buildup" | "climax" | "payoff" | "solo_highlight"
    - "details": 1-2 sentence breakdown of the visual action and what makes it compelling
+
 3. "summary": A concise 2-3 sentence overview describing the overall video arc, tone, and pacing.
 
 Return STRICT JSON matching this structure:
@@ -148,6 +153,8 @@ Return STRICT JSON matching this structure:
       "title": "...",
       "intensity": 9.2,
       "type": "skill",
+      "cluster_id": "Race 1",
+      "beat": "climax",
       "details": "..."
     }
   ]
@@ -241,16 +248,16 @@ def plan_shorts_strategy(
         preset_instructions = f"""
 PRESET STRATEGY: DIVERSE MULTI-ANGLE CAMPAIGN ({target_count} Shorts):
 Deliver a masterfully balanced portfolio of {target_count} distinct Shorts, each attacking audience psychology from a different angle:
-- Short 1: 🔥 THE PEAK HIGHLIGHT — The single most explosive, jaw-dropping moment of the entire video.
-- Short 2: 😂 CHAOS & BLOOPER — Unexpected wipeout, hilarious fail, or comical blunder with witty commentary.
-- Short 3: ⚡ PURE SKILL / MASTERCLASS — Flawless combo, impossible reaction time, or razor-sharp execution.
-- Short 4: 🏆 STORY ARC / DRAMATIC COMEBACK — "Zero to Hero": initial setback/struggle ➡️ fierce escalation ➡️ triumphant payoff.
-- Short 5: 🧩 THEMATIC COMPILATION — Top 3 micro-moments stitched together (e.g. "3 Quickest Overtakes", "3 Sickest Tricks", or "3 Wildest Moments in 25s").
+- Short 1: 🔥 THE PEAK HIGHLIGHT (Continuous 1-cut highlight, 18-35s) — The single most explosive, jaw-dropping moment of the entire video.
+- Short 2: 🎬 4-BEAT NARRATIVE STORY (3-4 micro-scenes from 1 cohesive action cluster) — Hook ➡️ Escalation ➡️ Climax ➡️ Payoff.
+- Short 3: 😂 CHAOS & BLOOPER (Continuous 1-cut fail/crash, 15-30s) — Unexpected wipeout, hilarious fail, or comical blunder with witty commentary.
+- Short 4: ⚡ PURE SKILL / MASTERCLASS (Continuous 1-cut showcase, 18-35s) — Flawless combo, impossible reaction time, or razor-sharp execution.
+- Short 5: 🧩 THEMATIC COMPILATION / COUNTDOWN (3 scenes) — Top 3 micro-moments stitched together (#3 ➡️ #2 ➡️ #1).
 """
     elif scenario_preset == "skills":
         preset_instructions = f"""
 PRESET STRATEGY: PURE SKILL & MASTERCLASS ({target_count} Shorts):
-Focus exclusively on peak human or player performance, razor-sharp reflexes, frame-perfect timing, and high-difficulty tricks. Create high-energy Shorts showcasing mastery, combining single highlights and Top-3 skill compilations.
+Focus exclusively on peak human or player performance, razor-sharp reflexes, frame-perfect timing, and high-difficulty tricks. Create high-energy Shorts showcasing mastery, combining continuous 1-cut showcases and Top-3 skill compilations.
 """
     elif scenario_preset == "fails":
         preset_instructions = f"""
@@ -259,11 +266,14 @@ Focus on hilarious mistakes, unexpected bails, physics glitches, chaotic collisi
 """
     elif scenario_preset == "story_arc":
         preset_instructions = f"""
-PRESET STRATEGY: NARRATIVE STORY ARC / ZERO TO HERO ({target_count} Shorts):
-Craft narrative Shorts where each video stitches 2 to 3 chronological micro-scenes showing a clear storytelling arc:
-- Scene 1 (The Setback): Early disaster, crash, or difficult deficit
-- Scene 2 (The Fightback): Aggressive push through obstacles or traffic
-- Scene 3 (The Triumph): A clutch, frame-perfect victory or photo finish
+PRESET STRATEGY: 4-BEAT NARRATIVE STORY ARCS ({target_count} Shorts):
+Every Short MUST follow the classic, high-retention 4-beat micro-story structure:
+(Хук/Зав'язка ➡️ Ескалація темпу ➡️ Небезпечний/кульмінаційний момент ➡️ Фінал)
+CRITICAL CONTEXT RULE: All 3 to 4 micro-scenes for each Short MUST originate from the SAME action cluster or sequence (the same race, round, fight, or continuous stunt run) so that the visual action, vehicle/character, and environment remain 100% coherent:
+- Beat 1 (🎯 Hook / Зав'язка, 3–6s): The initial situation, high stakes, or early setback. Immediate action with zero waiting.
+- Beat 2 (⚡ Escalation / Ескалація темпу, 5–8s): Rising tension, accelerating speed, narrowing gaps, pushing through traffic or obstacles.
+- Beat 3 (🔥 Climax / Кульмінація & Небезпека, 6–10s): The jaw-dropping apex: insane drift, near-miss, clutch overtake, or massive crash.
+- Beat 4 (🏁 Payoff / Фінал & Панчлайн, 4–6s): The victorious finish, narrow escape, or hilarious aftermath.
 """
     elif scenario_preset == "contrast":
         preset_instructions = f"""
@@ -275,7 +285,7 @@ Craft Shorts based on dramatic contrast:
     elif scenario_preset in ("highlights", "crashes"):
         preset_instructions = f"""
 PRESET STRATEGY: TOP EXPLOSIVE SCENES & HIGHLIGHTS ({target_count} Shorts):
-Extract the top highest-adrenaline micro-moments across the timeline and package them into high-retention Shorts (both continuous cuts and Top 3 montage compilations).
+Focus on maximum adrenaline and jaw-dropping impact. Prioritize continuous 1-cut highlights (18-35s) so the audience experiences the full momentum, speed, and real-time tension without disorienting cuts.
 """
     elif scenario_preset == "chronological":
         preset_instructions = f"""
@@ -302,57 +312,49 @@ Design an elite YouTube Shorts Production Plan following the creative guidelines
 MANDATORY COUNT RULE:
 {count_instruction}
 
-MULTI-SCENE MONTAGE SPECIFICATION ("segments"):
-You are NOT limited to cutting just one single continuous slice of video. You have full directorial power to extract MULTIPLE micro-scenes from different timestamps and stitch them together into ONE cohesive, high-retention Short!
-- For single continuous moments: "segments" has 1 entry.
-- For compilations, story arcs, and contrast presets: "segments" contains 2 to 4 micro-scenes extracted from different parts of the timeline!
-  Example:
-  "segments": [
-    {{
-      "segment_index": 1,
-      "start_sec": 14.0,
-      "end_sec": 22.0,
-      "duration_sec": 8.0,
-      "label": "Moment #3: Inside Overtake",
-      "scene_description": "Aggressive dive into turn 2"
-    }},
-    {{
-      "segment_index": 2,
-      "start_sec": 65.0,
-      "end_sec": 73.0,
-      "duration_sec": 8.0,
-      "label": "Moment #2: Wall Ride Slipstream",
-      "scene_description": "Threading through traffic at top speed"
-    }},
-    {{
-      "segment_index": 3,
-      "start_sec": 130.0,
-      "end_sec": 139.0,
-      "duration_sec": 9.0,
-      "label": "Moment #1: Photo Finish",
-      "scene_description": "Clutch drift across the finish line"
-    }}
-  ]
+DIRECTORIAL STRATEGY & SCENE ARCHITECTURE ("segments"):
+CRITICAL QUALITY DIRECTIVES:
+1. NO DISJOINTED FRANKENSTEIN CUTS:
+   - For 3-4 scene narrative Shorts (Hook ➡️ Escalation ➡️ Climax ➡️ Payoff): ALL segments MUST belong to the SAME continuous action event (the same race, round, fight, or stunt attempt). DO NOT pluck random disconnected clips from across a 40-minute video! The viewer must see a coherent progression of the SAME vehicle/character/event.
+   - For single-cut highlights (The Peak Highlight, Pure Skill, Epic Fail): Keep the moment AS 1 CONTINUOUS UNCUT SHOT (18–35s)! Do not chop it into fragments if the uncut action is already thrilling.
+
+2. THE 4-BEAT NARRATIVE STRUCTURE (When creating multi-scene story Shorts):
+   - Segment 1: "label": "🎯 Beat 1: Hook / Зав'язка" (3.5 to 6.0s) -> Instantly establishes the stakes or cold start.
+   - Segment 2: "label": "⚡ Beat 2: Escalation / Ескалація" (5.0 to 8.0s) -> Speed increases, tension rises, near-misses.
+   - Segment 3: "label": "🔥 Beat 3: Climax / Кульмінація" (6.0 to 10.0s) -> The peak stunt, crash, impossible overtake, or clutch play.
+   - Segment 4: "label": "🏁 Beat 4: Payoff / Фінал" (4.0 to 6.0s) -> The finish line, recovery, funny outcome, or audience question.
+
+3. COUNTDOWN COMPILATION STRUCTURE (When creating top-moment montages):
+   - 3 micro-scenes (#3 -> #2 -> #1)
+   - Segment 1: "label": "🥉 Moment #3: The Setup"
+   - Segment 2: "label": "🥈 Moment #2: The Near Miss"
+   - Segment 3: "label": "🥇 Moment #1: The Insane Climax"
 
 CRITICAL DURATION RULES:
-- The total duration ("duration_sec") of each Short MUST be the SUM of its segment durations!
-- Every Short's total duration MUST be between 18.0 and 52.0 seconds (hard YouTube Shorts limit is 60 seconds).
-- Each individual micro-segment should be between 5.0 and 15.0 seconds.
+- The total duration ("duration_sec") of each Short MUST be the exact SUM of its segment durations (between 20.0 and 42.0 seconds).
+- For single-cut Shorts: duration is 18.0 to 35.0 seconds.
+- For 3-4 scene narrative Shorts: total duration is 22.0 to 38.0 seconds (each segment 3.5 to 9.0s).
 
 LANGUAGE REQUIREMENT:
 All user-facing text fields ("title", "badge", "hook", "rationale", "voiceover_script", "reasoning", "label") MUST be written in {target_lang_label}!
 
-VOICEOVER SCRIPT CONTINUITY ({target_lang_label}):
+VOICEOVER SCRIPT & AUDIO SYNCHRONIZATION ({target_lang_label}):
 - Tone: High-energy, captivating commentator / viral creator vibe.
-- Continuity: The script MUST be written to flow seamlessly across all cut points. For compilations, count down or introduce the moments (e.g., "Three moments proving skill beats luck every time. First up... But wait until you see number one!").
-- Pacing: 3 to 5 energetic, fast-paced sentences matching the visual rhythm.
+- BEAT-BY-BEAT ALIGNMENT FOR 3-4 SCENE SHORTS:
+  The script MUST contain exactly one punchy sentence for each segment so the spoken words match what is shown on screen in real time:
+  * Sentence 1 (matches Beat 1 Hook): Hooks curiosity and introduces the challenge.
+  * Sentence 2 (matches Beat 2 Escalation): Describes the mounting tension and speed.
+  * Sentence 3 (matches Beat 3 Climax): High-adrenaline reaction to the crazy move/impact!
+  * Sentence 4 (matches Beat 4 Payoff): Memorable punchline or call to comment/subscribe.
+- WORD COUNT FORMULA:
+  Target 2.4 to 2.8 words per second of total Short duration (e.g. 25-second Short = 55 to 68 words total). Never exceed 75 words! This guarantees Edge-TTS speaks with natural, clear broadcast cadence without rushing.
 
 For each Short in "shorts":
 - "id": "short_1", "short_2", ..., "short_{target_count}"
 - "title": High-CTR viral title with emojis and #Shorts (max 65 chars) in {target_lang_label}
 - "badge": Category badge in {target_lang_label} (e.g. "🔥 Top Moment", "⚡ Pure Skill", "😂 Epic Fail", "🏆 Comeback", "🎭 Contrast")
 - "concept_type": "single_scene" | "compilation" | "story_arc" | "contrast" | "chronological"
-- "segments": array of 1 to 4 micro-scenes with timestamps and labels
+- "segments": array of 1 to 4 micro-scenes (1 continuous scene for peak highlights; 3-4 scenes for narrative story arcs; 3 scenes for compilations)
 - "start_sec": timestamp of the first segment
 - "end_sec": timestamp of the last segment
 - "duration_sec": total sum of segment durations
@@ -369,21 +371,45 @@ Return STRICT JSON matching:
     {{
       "id": "short_1",
       "title": "...",
-      "badge": "...",
-      "concept_type": "compilation",
+      "badge": "🏆 Comeback",
+      "concept_type": "story_arc",
       "segments": [
         {{
           "segment_index": 1,
           "start_sec": 14.0,
-          "end_sec": 22.0,
+          "end_sec": 18.5,
+          "duration_sec": 4.5,
+          "label": "🎯 Beat 1: Hook / The Start",
+          "scene_description": "Aggressive launch into the tight first corner"
+        }},
+        {{
+          "segment_index": 2,
+          "start_sec": 22.0,
+          "end_sec": 28.0,
+          "duration_sec": 6.0,
+          "label": "⚡ Beat 2: Escalation / The Chase",
+          "scene_description": "Weaving through traffic at 200 km/h with inches to spare"
+        }},
+        {{
+          "segment_index": 3,
+          "start_sec": 31.0,
+          "end_sec": 39.0,
           "duration_sec": 8.0,
-          "label": "...",
-          "scene_description": "..."
+          "label": "🔥 Beat 3: Climax / The Near Miss",
+          "scene_description": "Insane high-angle drift splitting two competitors"
+        }},
+        {{
+          "segment_index": 4,
+          "start_sec": 41.0,
+          "end_sec": 46.0,
+          "duration_sec": 5.0,
+          "label": "🏁 Beat 4: Payoff / The Finish",
+          "scene_description": "Smoking tires across the line in first place"
         }}
       ],
       "start_sec": 14.0,
-      "end_sec": 22.0,
-      "duration_sec": 8.0,
+      "end_sec": 46.0,
+      "duration_sec": 23.5,
       "hook": "...",
       "rationale": "...",
       "voiceover_script": "...",
@@ -493,6 +519,136 @@ def check_audio_stream(file_path: str) -> bool:
         return True
 
 
+def build_rich_metadata_for_short(
+    safe_title: str,
+    base_name: str,
+    hook: Optional[str] = None,
+    voiceover_script: Optional[str] = None,
+    rationale: Optional[str] = None,
+    detected_game: Optional[str] = None,
+    badge: Optional[str] = None,
+    segments: Optional[List[Dict[str, Any]]] = None,
+    target_lang: str = "en"
+) -> Dict[str, Any]:
+    """
+    Constructs comprehensive, high-retention YouTube Shorts descriptions and tags
+    from already-analyzed AI game context, 2-second hook, narrator script, and scene breakdown.
+    Requires 0 additional Gemini tokens and works instantaneously.
+    """
+    from youtube_uploader import sanitize_youtube_tag
+
+    clean_game = detected_game.strip() if detected_game and detected_game.strip() else ""
+    game_tag = sanitize_youtube_tag(clean_game) if clean_game else ""
+    clean_tag_title = sanitize_youtube_tag(safe_title)
+
+    # 1. English Description Construction
+    en_hook = hook.strip() if hook and hook.strip() else f"Check out this insane highlight from {clean_game or base_name}!"
+    en_story = voiceover_script.strip() if voiceover_script and voiceover_script.strip() else (rationale.strip() if rationale else f"Epic high-adrenaline sequence captured in {clean_game or base_name}.")
+
+    en_desc_lines = [
+        f"⚡ {en_hook}",
+        "",
+        en_story,
+        ""
+    ]
+    if clean_game:
+        en_desc_lines.append(f"🎮 Game: {clean_game}")
+    if badge:
+        en_desc_lines.append(f"🎬 Category: {badge}")
+
+    if segments and len(segments) > 1:
+        en_desc_lines.append("📍 Highlights & Scenes:")
+        for seg in segments:
+            lbl = seg.get("label") or seg.get("scene_description") or f"Scene #{seg.get('segment_index', 1)}"
+            dur = seg.get('duration_sec', 0)
+            en_desc_lines.append(f"• {lbl} ({dur}s)")
+        en_desc_lines.append("")
+
+    en_desc_lines.extend([
+        "💬 Question of the day: What was your favorite moment here? Drop your thoughts in the comments below!",
+        "🔔 Subscribe for more daily viral gaming clips, epic highlights, and Shorts!",
+        "",
+        f"#{game_tag or 'Gaming'} #Shorts #Highlights #Gaming #Viral #Trending"
+    ])
+    en_description = "\n".join(en_desc_lines)
+
+    en_tags = ["Shorts", "Highlights", "Gaming", "Viral", "Trending"]
+    if game_tag and game_tag.lower() not in [t.lower() for t in en_tags]:
+        en_tags.insert(1, game_tag)
+    if clean_tag_title and clean_tag_title.lower() not in [t.lower() for t in en_tags]:
+        en_tags.append(clean_tag_title)
+
+    # 2. Ukrainian Description Construction
+    uk_hook = hook.strip() if hook and hook.strip() else f"Дивіться найяскравіший момент із {clean_game or base_name}!"
+    uk_story = voiceover_script.strip() if voiceover_script and voiceover_script.strip() else (rationale.strip() if rationale else f"Епічний та напружений момент, зафіксований у {clean_game or base_name}.")
+
+    uk_desc_lines = [
+        f"⚡ {uk_hook}",
+        "",
+        uk_story,
+        ""
+    ]
+    if clean_game:
+        uk_desc_lines.append(f"🎮 Гра: {clean_game}")
+    if badge:
+        uk_desc_lines.append(f"🎬 Категорія: {badge}")
+
+    if segments and len(segments) > 1:
+        uk_desc_lines.append("📍 Ключові сцени ролика:")
+        for seg in segments:
+            lbl = seg.get("label") or seg.get("scene_description") or f"Сцена #{seg.get('segment_index', 1)}"
+            dur = seg.get('duration_sec', 0)
+            uk_desc_lines.append(f"• {lbl} ({dur}с)")
+        uk_desc_lines.append("")
+
+    uk_desc_lines.extend([
+        "💬 Як вам цей момент? Діліться враженнями та коментуйте!",
+        "🔔 Підписуйтесь на канал, щоб не пропустити свіжі щоденні випуски та Shorts!",
+        "",
+        f"#{game_tag or 'Геймінг'} #Shorts #Хайлайти #Відео #Геймінг #Тренди"
+    ])
+    uk_description = "\n".join(uk_desc_lines)
+
+    uk_tags = ["Shorts", "Хайлайти", "Відео", "Геймінг", "Тренди"]
+    if game_tag and game_tag.lower() not in [t.lower() for t in uk_tags]:
+        uk_tags.insert(1, game_tag)
+    if clean_tag_title and clean_tag_title.lower() not in [t.lower() for t in uk_tags]:
+        uk_tags.append(clean_tag_title)
+
+    # 3. Determine primary vs localized based on target_lang
+    full_title = f"{safe_title} #Shorts"
+    is_uk = target_lang.lower().startswith("uk")
+
+    if is_uk:
+        return {
+            "title": full_title,
+            "description": uk_description,
+            "tags": uk_tags,
+            "default_lang": "uk",
+            "localizations": {
+                "en": {
+                    "title": full_title,
+                    "description": en_description,
+                    "tags": en_tags
+                }
+            }
+        }
+    else:
+        return {
+            "title": full_title,
+            "description": en_description,
+            "tags": en_tags,
+            "default_lang": "en",
+            "localizations": {
+                "uk": {
+                    "title": full_title,
+                    "description": uk_description,
+                    "tags": uk_tags
+                }
+            }
+        }
+
+
 def render_planned_short(
     source_path: str,
     start_sec: float,
@@ -507,8 +663,14 @@ def render_planned_short(
     blur_radius: int = 25,
     dim: float = 0.18,
     with_outro: bool = False,
-    outro_style: str = "youtube_classic",
-    outro_bg: str = "deep_black"
+    outro_style: str = "youtube_animated_pills",
+    outro_mode: str = "bottom_floating",
+    outro_bg: str = "deep_black",
+    hook: Optional[str] = None,
+    rationale: Optional[str] = None,
+    detected_game: Optional[str] = None,
+    badge: Optional[str] = None,
+    language: Optional[str] = "en"
 ) -> Dict[str, Any]:
     """
     HIGH-PERFORMANCE SINGLE-PASS TURBO RENDERER (SINGLE-CUT OR MULTI-SCENE COMPILATION):
@@ -625,8 +787,10 @@ def render_planned_short(
                         f"[bg{idx}][fg{idx}]overlay=0:(1920-h)*{y_pos},setpts=PTS-STARTPTS[v{idx}]"
                     )
                     if has_audio:
+                        seg_dur = max(0.1, float(valid_segments[idx]['end_sec']) - float(valid_segments[idx]['start_sec']))
+                        fade_out_st = max(0.0, round(seg_dur - 0.02, 3))
                         filter_parts.append(
-                            f"[{idx}:a]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo,asetpts=PTS-STARTPTS[a{idx}]"
+                            f"[{idx}:a]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo,asetpts=PTS-STARTPTS,afade=t=in:ss=0:d=0.015,afade=t=out:st={fade_out_st}:d=0.015[a{idx}]"
                         )
 
                 if has_audio:
@@ -634,15 +798,15 @@ def render_planned_short(
                     filter_parts.append(f"{concat_ins}concat=n={k_segs}:v=1:a=1[v_concat][game_a]")
                     filter_parts.append(f"[v_concat]subtitles='{ass_escaped}'[vout]")
                     filter_parts.append(
-                        f"[game_a]volume=0.35[game_ducked];"
-                        f"[{voice_idx}:a]volume=1.35[voice_a];"
-                        f"[game_ducked][voice_a]amix=inputs=2:duration=first:dropout_transition=2[aout]"
+                        f"[game_a]volume=0.20[game_ducked];"
+                        f"[{voice_idx}:a]volume=1.15[voice_a];"
+                        f"[game_ducked][voice_a]amix=inputs=2:duration=first:dropout_transition=2:normalize=0,alimiter=limit=0.95[aout]"
                     )
                 else:
                     concat_ins = "".join(f"[v{idx}]" for idx in range(k_segs))
                     filter_parts.append(f"{concat_ins}concat=n={k_segs}:v=1:a=0[v_concat]")
                     filter_parts.append(f"[v_concat]subtitles='{ass_escaped}'[vout]")
-                    filter_parts.append(f"[{voice_idx}:a]volume=1.35[aout]")
+                    filter_parts.append(f"[{voice_idx}:a]volume=1.0,alimiter=limit=0.95[aout]")
 
                 cmd = [
                     'ffmpeg', '-y',
@@ -681,8 +845,10 @@ def render_planned_short(
                     f"[bg{idx}][fg{idx}]overlay=0:(1920-h)*{y_pos},setpts=PTS-STARTPTS[v{idx}]"
                 )
                 if has_audio:
+                    seg_dur = max(0.1, float(valid_segments[idx]['end_sec']) - float(valid_segments[idx]['start_sec']))
+                    fade_out_st = max(0.0, round(seg_dur - 0.02, 3))
                     filter_parts.append(
-                        f"[{idx}:a]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo,asetpts=PTS-STARTPTS[a{idx}]"
+                        f"[{idx}:a]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo,asetpts=PTS-STARTPTS,afade=t=in:ss=0:d=0.015,afade=t=out:st={fade_out_st}:d=0.015[a{idx}]"
                     )
 
             if has_audio:
@@ -753,9 +919,9 @@ def render_planned_short(
                 f"[bg_in]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur={blur_radius}:5,eq=brightness={brightness_arg}[bg];"
                 f"[fg_in]scale={w_scaled}:-2,crop=1080:ih:(iw-1080)/2:0[fg];"
                 f"[bg][fg]overlay=0:(1920-h)*{y_pos},subtitles='{ass_escaped}'[vout];"
-                f"[0:a]volume=0.35[game_a];"
-                f"[1:a]volume=1.35[voice_a];"
-                f"[game_a][voice_a]amix=inputs=2:duration=first:dropout_transition=2[aout]"
+                f"[0:a]volume=0.20[game_a];"
+                f"[1:a]volume=1.15[voice_a];"
+                f"[game_a][voice_a]amix=inputs=2:duration=first:dropout_transition=2:normalize=0,alimiter=limit=0.95[aout]"
             )
 
             cmd = [
@@ -820,46 +986,58 @@ def render_planned_short(
     logger.info(f"Short rendered in {time.time() - t_render_start:.2f}s: {output_path}")
 
     is_en_voice = voice.lower().startswith('en-')
-    target_lang = "en" if is_en_voice else "uk"
+    target_lang = (language or ("en" if is_en_voice else "uk")).lower()
 
     if with_outro:
         try:
-            logger.info(f"Applying Like & Subscribe outro overlay to Short: {output_path} (lang={target_lang})")
+            logger.info(f"Applying animated Like & Subscribe sticker to Short: {output_path} (lang=en)")
             video_outro.apply_outro_overlay(
                 source_video=output_path,
                 output_video=output_path,
-                style_key=outro_style or ("youtube_classic" if is_en_voice else "ukrainian_native"),
+                style_key=outro_style or "youtube_animated_pills",
+                mode=outro_mode or "bottom_floating",
                 bg_mode=outro_bg or "deep_black",
                 outro_duration=2.8,
-                lang=target_lang,
+                lang="en",  # English channel content
             )
         except Exception as oe:
             logger.warning(f"Could not apply outro to short {output_path}: {oe}")
 
-    # Register in SQLite database
+    # Register in SQLite database with rich AI-powered metadata
     norm_path = output_path.replace('\\', '/')
-    default_desc = f"Epic moment from {base_name}! #Shorts #Highlights #Viral" if is_en_voice else f"Дивіться яскравий момент із {base_name}! #Shorts #Відео"
-    from youtube_uploader import sanitize_youtube_tag
-    clean_tag_title = sanitize_youtube_tag(safe_title)
-    default_tags = ["Shorts", "Highlights", "Viral"] if is_en_voice else ["Shorts", "Хайлайти", "Відео"]
-    if clean_tag_title and clean_tag_title.lower() not in [t.lower() for t in default_tags]:
-        default_tags.append(clean_tag_title)
+    rich_meta = build_rich_metadata_for_short(
+        safe_title=safe_title,
+        base_name=base_name,
+        hook=hook,
+        voiceover_script=voiceover_script,
+        rationale=rationale,
+        detected_game=detected_game,
+        badge=badge,
+        segments=valid_segments if is_multi_segment else segments,
+        target_lang=target_lang
+    )
 
     database.upsert_record(
         path=norm_path,
         filename=os.path.basename(output_path),
-        title=f"{safe_title} #Shorts",
-        description=default_desc,
-        tags=default_tags,
+        title=rich_meta["title"],
+        description=rich_meta["description"],
+        tags=rich_meta["tags"],
         is_shorts=True,
-        status="planning"
+        status="planning",
+        default_lang=rich_meta["default_lang"],
+        localizations=rich_meta["localizations"]
     )
 
     return {
         "success": True,
         "path": norm_path,
         "filename": os.path.basename(output_path),
-        "title": f"{safe_title} #Shorts",
+        "title": rich_meta["title"],
+        "description": rich_meta["description"],
+        "tags": rich_meta["tags"],
+        "default_lang": rich_meta["default_lang"],
+        "localizations": rich_meta["localizations"],
         "duration": duration,
         "render_time_sec": round(time.time() - t_render_start, 2),
         "segments_count": len(valid_segments) if is_multi_segment else 1

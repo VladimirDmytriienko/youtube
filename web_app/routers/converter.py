@@ -25,7 +25,8 @@ class ConvertShortsRequest(BaseModel):
     title: Optional[str] = None
     lang: Optional[str] = None
     with_outro: bool = False
-    outro_style: Optional[str] = "youtube_classic"
+    outro_style: Optional[str] = "youtube_animated_pills"
+    outro_mode: Optional[str] = "bottom_floating"
     outro_bg: Optional[str] = "deep_black"
 
 @router.post("/convert-to-shorts")
@@ -95,14 +96,15 @@ def convert_to_shorts(req: ConvertShortsRequest, request: Request):
 
     if req.with_outro:
         try:
-            logger.info(f"Applying Like & Subscribe outro to converted short: {output_path} (lang={active_lang})")
+            logger.info(f"Applying animated Like & Subscribe sticker to converted short: {output_path} (lang=en)")
             video_outro.apply_outro_overlay(
                 source_video=output_path,
                 output_video=output_path,
-                style_key=req.outro_style or ("ukrainian_native" if active_lang.startswith("uk") else "youtube_classic"),
+                style_key=req.outro_style or "youtube_animated_pills",
+                mode=req.outro_mode or ("bottom_floating" if req.outro_style in [None, "youtube_animated_pills"] else "outro_card"),
                 bg_mode=req.outro_bg or "deep_black",
                 outro_duration=2.8,
-                lang=active_lang
+                lang="en"
             )
         except Exception as oe:
             logger.warning(f"Could not apply outro to short {output_path}: {oe}")
@@ -144,8 +146,14 @@ class RenderPlannedShortRequest(BaseModel):
     blur_radius: Optional[int] = Field(25, description="Blur intensity for background")
     dim: Optional[float] = Field(0.18, description="Background dimming factor")
     with_outro: bool = Field(False, description="Whether to overlay Like & Subscribe outro CTA")
-    outro_style: Optional[str] = Field("youtube_classic", description="Outro style key")
+    outro_style: Optional[str] = Field("youtube_animated_pills", description="Outro style key")
+    outro_mode: Optional[str] = Field("bottom_floating", description="'bottom_floating' or 'outro_card'")
     outro_bg: Optional[str] = Field("deep_black", description="Outro background mode: deep_black or cinematic_dark")
+    hook: Optional[str] = Field(None, description="2-second opening hook")
+    rationale: Optional[str] = Field(None, description="Viral strategy rationale")
+    detected_game: Optional[str] = Field(None, description="Detected game title or topic")
+    badge: Optional[str] = Field(None, description="Category badge")
+    language: Optional[str] = Field("en", description="Target language: en or uk")
 
 @router.post("/ai/render-planned-short")
 def render_planned_short_endpoint(req: RenderPlannedShortRequest):
@@ -164,8 +172,14 @@ def render_planned_short_endpoint(req: RenderPlannedShortRequest):
             blur_radius=req.blur_radius or 25,
             dim=req.dim or 0.18,
             with_outro=req.with_outro,
-            outro_style=req.outro_style or "youtube_classic",
-            outro_bg=req.outro_bg or "deep_black"
+            outro_style=req.outro_style or "youtube_animated_pills",
+            outro_mode=req.outro_mode or "bottom_floating",
+            outro_bg=req.outro_bg or "deep_black",
+            hook=req.hook,
+            rationale=req.rationale,
+            detected_game=req.detected_game,
+            badge=req.badge,
+            language=req.language or "en"
         )
         return result
     except Exception as e:

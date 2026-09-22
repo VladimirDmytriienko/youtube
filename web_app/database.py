@@ -501,3 +501,23 @@ def delete_record(path: str) -> bool:
         conn.commit()
         return cursor.rowcount > 0
 
+def move_record(old_path: str, new_path: str) -> Optional[Dict[str, Any]]:
+    """Updates the path and filename of a video record when moved on disk."""
+    old_path = old_path.replace('\\', '/')
+    new_path = new_path.replace('\\', '/')
+    now_str = datetime.utcnow().isoformat() + "Z"
+    new_filename = os.path.basename(new_path)
+
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        # Remove any existing collision at new_path
+        cursor.execute('DELETE FROM video_records WHERE path = ?', (new_path,))
+        cursor.execute('''
+            UPDATE video_records
+            SET path = ?, filename = ?, updated_at = ?
+            WHERE path = ?
+        ''', (new_path, new_filename, now_str, old_path))
+        conn.commit()
+
+    return get_record(new_path)
+

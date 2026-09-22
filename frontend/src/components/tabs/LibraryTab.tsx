@@ -1,15 +1,21 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { Zap, Film, Play, CalendarPlus, Wand2, Trash2 } from "lucide-react";
+import { Zap, Film, Play, CalendarPlus, Wand2, Trash2, Archive, ArchiveRestore } from "lucide-react";
 import { VideoItem, AppLang, VideoStatus } from "@/types";
 import { I18N } from "@/lib/i18n";
 import { StatusSelector } from "@/components/common/StatusSelector";
 
-type FilterType = "all" | "planning" | "scheduled" | "posted" | "shorts";
+type FilterType = "all" | "planning" | "scheduled" | "posted" | "shorts" | "archive";
 
 import { useAppLanguage } from "@/hooks/useAppLanguage";
-import { useVideos, useUpdateVideoStatus, useDeleteVideoMutation } from "@/hooks/useApi";
+import {
+  useVideos,
+  useUpdateVideoStatus,
+  useDeleteVideoMutation,
+  useArchiveVideoMutation,
+  useUnarchiveVideoMutation,
+} from "@/hooks/useApi";
 import { usePostDrawer, useVideoPlayer, useNavigationTab, useConverterState } from "@/hooks/useModals";
 import { ConfirmDeleteModal } from "@/components/modals/ConfirmDeleteModal";
 import { getThumbnailUrl } from "@/lib/api";
@@ -23,6 +29,8 @@ export function LibraryTab() {
   const { selectForConversion } = useConverterState();
   const updateStatusMutation = useUpdateVideoStatus();
   const deleteVideoMutation = useDeleteVideoMutation();
+  const archiveVideoMutation = useArchiveVideoMutation();
+  const unarchiveVideoMutation = useUnarchiveVideoMutation();
   const [deletingVideo, setDeletingVideo] = useState<VideoItem | null>(null);
 
   const onOpenPlayer = openPlayer;
@@ -44,19 +52,26 @@ export function LibraryTab() {
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
 
   const counts = useMemo(() => {
+    const active = videos.filter((v) => !v.is_archived);
+    const archived = videos.filter((v) => !!v.is_archived);
     return {
-      all: videos.length,
-      planning: videos.filter((v) => v.status === "planning").length,
-      scheduled: videos.filter((v) => v.status === "scheduled").length,
-      posted: videos.filter((v) => v.status === "posted").length,
-      shorts: videos.filter((v) => v.is_shorts).length,
+      all: active.length,
+      planning: active.filter((v) => v.status === "planning").length,
+      scheduled: active.filter((v) => v.status === "scheduled").length,
+      posted: active.filter((v) => v.status === "posted").length,
+      shorts: active.filter((v) => v.is_shorts).length,
+      archive: archived.length,
     };
   }, [videos]);
 
   const filteredVideos = useMemo(() => {
-    if (activeFilter === "all") return videos;
-    if (activeFilter === "shorts") return videos.filter((v) => v.is_shorts);
-    return videos.filter((v) => v.status === activeFilter);
+    if (activeFilter === "archive") {
+      return videos.filter((v) => !!v.is_archived);
+    }
+    const active = videos.filter((v) => !v.is_archived);
+    if (activeFilter === "all") return active;
+    if (activeFilter === "shorts") return active.filter((v) => v.is_shorts);
+    return active.filter((v) => v.status === activeFilter);
   }, [videos, activeFilter]);
 
   const shorts = useMemo(() => filteredVideos.filter((v) => v.is_shorts), [filteredVideos]);
@@ -72,6 +87,7 @@ export function LibraryTab() {
           { id: "scheduled", label: `${tr.status.scheduled} (${counts.scheduled})` },
           { id: "posted", label: `${tr.status.posted} (${counts.posted})` },
           { id: "shorts", label: `⚡ Shorts (${counts.shorts})` },
+          { id: "archive", label: `${tr.status.archive || "📦 Архів"} (${counts.archive})` },
         ].map((chip) => {
           const isActive = activeFilter === chip.id;
           return (
@@ -90,12 +106,34 @@ export function LibraryTab() {
         })}
       </div>
 
+      {/* Empty State for Archive or empty filters */}
+      {filteredVideos.length === 0 && (
+        <div className="py-16 text-center space-y-3 bg-muted/20 border border-dashed border-border rounded-2xl p-8">
+          <div className="w-12 h-12 rounded-full bg-muted/60 text-muted-foreground flex items-center justify-center mx-auto">
+            <Archive className="w-6 h-6" />
+          </div>
+          <h3 className="text-sm font-semibold text-foreground">
+            {activeFilter === "archive"
+              ? (tr.library.emptyArchiveTitle || "Архів порожній")
+              : "Відео не знайдено"}
+          </h3>
+          <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+            {activeFilter === "archive"
+              ? (tr.library.emptyArchiveDesc || "Тут зберігаються опубліковані або завершені відео, перенесені в локальну папку archive.")
+              : "У цій категорії наразі немає відеофайлів."}
+          </p>
+        </div>
+      )}
+
       {/* 2. SHORTS SECTION (Clean YouTube Web 9:16 Style - No Heavy Outer Box) */}
       {shorts.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center justify-between px-0.5">
             <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-              <Zap className="w-3.5 h-3.5 text-rose-500 fill-rose-500" /> {tr.library.shortsTitle}
+              <Zap className="w-3.5 h-3.5 text-rose-500 fill-rose-500" />
+              {activeFilter === "archive"
+                ? (tr.library.archivedShortsTitle || "Заархівовані Shorts (9:16)")
+                : tr.library.shortsTitle}
             </span>
             <span className="text-[11px] text-muted-foreground font-mono">
               {tr.library.clickPreview}
@@ -132,6 +170,14 @@ export function LibraryTab() {
                     </span>
                   </div>
 
+                  {v.is_archived && (
+                    <div className="absolute top-2 right-2">
+                      <span className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[9px] font-bold text-amber-300 bg-black/80 backdrop-blur-sm border border-amber-500/40 shadow">
+                        <Archive className="w-2.5 h-2.5 text-amber-400" /> Архів
+                      </span>
+                    </div>
+                  )}
+
                   <div className="absolute bottom-2 right-2">
                     <span className="rounded bg-black/80 px-1.5 py-0.5 text-[10px] font-mono font-semibold text-white">
                       {v.duration_formatted}
@@ -157,6 +203,29 @@ export function LibraryTab() {
                     />
 
                     <div className="flex items-center gap-1">
+                      {v.is_archived ? (
+                        <button
+                          type="button"
+                          onClick={() => unarchiveVideoMutation.mutate(v.path)}
+                          disabled={unarchiveVideoMutation.isPending}
+                          className="h-6 px-2 rounded-full bg-amber-500/10 hover:bg-amber-500 hover:text-white text-amber-600 dark:text-amber-400 flex items-center gap-1 text-[10px] font-semibold transition cursor-pointer disabled:opacity-50"
+                          title={tr.library.unarchiveBtn || "Відновити з архіву"}
+                        >
+                          <ArchiveRestore className="w-3 h-3" />
+                          <span className="hidden xl:inline">Відновити</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => archiveVideoMutation.mutate(v.path)}
+                          disabled={archiveVideoMutation.isPending}
+                          className="h-6 w-6 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition cursor-pointer disabled:opacity-50"
+                          title={tr.library.archiveBtn || "В архів"}
+                        >
+                          <Archive className="w-3 h-3" />
+                        </button>
+                      )}
+
                       <button
                         type="button"
                         onClick={() => setDeletingVideo(v)}
@@ -187,7 +256,10 @@ export function LibraryTab() {
         <div className="space-y-3 pt-4 border-t border-border/60">
           <div className="flex items-center justify-between px-0.5">
             <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-              <Film className="w-3.5 h-3.5 text-sky-500" /> {tr.library.regularTitle}
+              <Film className="w-3.5 h-3.5 text-sky-500" />
+              {activeFilter === "archive"
+                ? (tr.library.archivedRegularTitle || "Заархівовані Відео (16:9)")
+                : tr.library.regularTitle}
             </span>
           </div>
 
@@ -220,6 +292,14 @@ export function LibraryTab() {
                       <Film className="w-2.5 h-2.5" /> 16:9
                     </span>
                   </div>
+
+                  {v.is_archived && (
+                    <div className="absolute top-2 right-2">
+                      <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] font-bold text-amber-300 bg-black/80 backdrop-blur-sm border border-amber-500/40 shadow">
+                        <Archive className="w-2.5 h-2.5 text-amber-400" /> Архів
+                      </span>
+                    </div>
+                  )}
 
                   <div className="absolute bottom-2 right-2">
                     <span className="rounded bg-black/80 px-1.5 py-0.5 text-[10px] font-mono font-semibold text-white">
@@ -260,6 +340,29 @@ export function LibraryTab() {
                     </button>
 
                     <div className="flex items-center gap-1">
+                      {v.is_archived ? (
+                        <button
+                          type="button"
+                          onClick={() => unarchiveVideoMutation.mutate(v.path)}
+                          disabled={unarchiveVideoMutation.isPending}
+                          className="h-7 px-2.5 rounded-full bg-amber-500/10 hover:bg-amber-500 hover:text-white text-amber-600 dark:text-amber-400 text-xs font-semibold flex items-center gap-1 transition cursor-pointer disabled:opacity-50"
+                          title={tr.library.unarchiveBtn || "Відновити з архіву"}
+                        >
+                          <ArchiveRestore className="w-3.5 h-3.5" />
+                          <span>Відновити</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => archiveVideoMutation.mutate(v.path)}
+                          disabled={archiveVideoMutation.isPending}
+                          className="h-7 w-7 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition cursor-pointer disabled:opacity-50"
+                          title={tr.library.archiveBtn || "В архів"}
+                        >
+                          <Archive className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+
                       <button
                         type="button"
                         onClick={() => setDeletingVideo(v)}
@@ -289,6 +392,16 @@ export function LibraryTab() {
         isOpen={!!deletingVideo}
         onClose={() => setDeletingVideo(null)}
         onConfirm={handleDelete}
+        onArchive={
+          deletingVideo && !deletingVideo.is_archived
+            ? () => {
+                archiveVideoMutation.mutate(deletingVideo.path, {
+                  onSuccess: () => setDeletingVideo(null),
+                });
+              }
+            : undefined
+        }
+        isArchiving={archiveVideoMutation.isPending}
         filename={deletingVideo?.filename || ""}
         isDeleting={deleteVideoMutation.isPending}
       />

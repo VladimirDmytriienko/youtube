@@ -14,62 +14,24 @@ router = APIRouter()
 class ApplyOutroRequest(BaseModel):
     video_path: str = Field(..., description="Absolute path to video file")
     output_path: Optional[str] = Field(None, description="Optional target output path")
-    style_key: Optional[str] = Field("youtube_classic", description="Outro style key")
+    style_key: Optional[str] = Field("youtube_animated_pills", description="Outro style key")
+    mode: Optional[str] = Field("bottom_floating", description="'bottom_floating' (all video) or 'outro_card' (last 2.8s)")
     bg_mode: Optional[str] = Field("deep_black", description="'deep_black' or 'cinematic_dark'")
     outro_duration: Optional[float] = Field(2.8, description="Duration of outro overlay in seconds")
-    lang: Optional[str] = Field(None, description="Optional target language (e.g. 'en', 'uk')")
+    lang: Optional[str] = Field("en", description="Target language (default 'en')")
 
 @router.get("/video/outro-styles")
 def get_outro_styles_endpoint():
     return {
         "styles": [
             {
-                "id": "youtube_classic",
-                "name": "Червона Печать (LIKE & SUBSCRIBE)",
+                "id": "youtube_animated_pills",
+                "name": "Жива анімація (YouTube Like & Subscribe)",
                 "lines": ["LIKE", "SUBSCRIBE"],
-                "badge": "🔴 YouTube Red",
-                "accent": "#FF2323",
-                "lang": "en"
-            },
-            {
-                "id": "ukrainian_native",
-                "name": "Золота Печать (ЛАЙК & ПІДПИСКА)",
-                "lines": ["ЛАЙК", "ПІДПИСКА"],
-                "badge": "🇺🇦 UA Gold",
-                "accent": "#FFD700",
-                "lang": "uk"
-            },
-            {
-                "id": "ukrainian_red",
-                "name": "Червона Печать (ЛАЙК & ПІДПИСКА)",
-                "lines": ["ЛАЙК", "ПІДПИСКА"],
-                "badge": "🇺🇦 UA Red",
-                "accent": "#FF2323",
-                "lang": "uk"
-            },
-            {
-                "id": "minimal_dark",
-                "name": "Біла Печать (LIKE & SUBSCRIBE)",
-                "lines": ["LIKE", "SUBSCRIBE"],
-                "badge": "⚪ Pure White",
-                "accent": "#FFFFFF",
-                "lang": "en"
-            },
-            {
-                "id": "minimal_dark_ua",
-                "name": "Біла Печать (ЛАЙК & ПІДПИСКА)",
-                "lines": ["ЛАЙК", "ПІДПИСКА"],
-                "badge": "🇺🇦 Білий Монохром",
-                "accent": "#FFFFFF",
-                "lang": "uk"
-            },
-            {
-                "id": "hype_gaming",
-                "name": "Неоновий Stamp (Neon Cyan)",
-                "lines": ["LIKE", "SUBSCRIBE"],
-                "badge": "⚡ Neon Cyan",
-                "accent": "#00F0FF",
-                "lang": "en"
+                "badge": "🔥 Жива анімація",
+                "accent": "#FF0000",
+                "is_animated": True,
+                "lang": "all"
             }
         ],
         "bg_modes": [
@@ -96,10 +58,11 @@ def apply_outro_endpoint(req: ApplyOutroRequest):
         result = video_outro.apply_outro_overlay(
             source_video=clean_path,
             output_video=req.output_path,
-            style_key=req.style_key or "youtube_classic",
+            style_key=req.style_key or "youtube_animated_pills",
+            mode=req.mode or "bottom_floating",
             bg_mode=req.bg_mode or "deep_black",
             outro_duration=req.outro_duration or 2.8,
-            lang=req.lang
+            lang=req.lang or "en"
         )
 
         out_path = result["path"]

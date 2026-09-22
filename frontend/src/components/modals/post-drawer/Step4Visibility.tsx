@@ -177,6 +177,26 @@ export function Step4Visibility({
           </div>
         </div>
       )}
+
+      {/* 4. Archive option */}
+      <div className="p-3.5 rounded-xl bg-muted/20 border border-border/60">
+        <label className="flex items-start gap-2.5 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={!!form.archiveAfterPost}
+            onChange={(e) => updateForm({ archiveAfterPost: e.target.checked })}
+            className="w-4 h-4 mt-0.5 rounded accent-primary cursor-pointer"
+          />
+          <div>
+            <span className="text-xs font-semibold text-foreground block">
+              📦 Перемістити відео в архів після публікації
+            </span>
+            <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+              Відео буде автоматично переміщено в підпапку archive на комп&apos;ютері, щоб не відображатися у списку активних роликів.
+            </p>
+          </div>
+        </label>
+      </div>
     </div>
   );
 }

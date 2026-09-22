@@ -19,10 +19,9 @@ import { Button } from "@/components/ui/button";
 import { VideoItem, VideoTimelineData, ShortsPlan, PlannedShort } from "@/types";
 import {
   VOICE_OPTIONS,
-  OUTRO_STYLES,
-  OUTRO_BG_MODES,
   DIRECTOR_PRESETS,
 } from "./constants";
+import { BatchScheduleModal } from "./BatchScheduleModal";
 
 export interface AiDirectorStudioProps {
   activeVideo: VideoItem | null;
@@ -59,7 +58,7 @@ export interface AiDirectorStudioProps {
   onApplyOutro: (targetVideoPath?: string) => void;
   isApplyingOutro: boolean;
   onOpenPlayer: (path: string) => void;
-  onOpenDrawer: (path: string) => void;
+  onOpenDrawer: (path: string, item?: PlannedShort) => void;
   onSetManualFromEvent: (startSec: number, endSec: number, title: string) => void;
   formatTime: (sec: number) => string;
 }
@@ -103,7 +102,9 @@ export function AiDirectorStudio({
   onSetManualFromEvent,
   formatTime,
 }: AiDirectorStudioProps) {
+  const [isBatchScheduleOpen, setIsBatchScheduleOpen] = React.useState(false);
   const selectedPresetObj = DIRECTOR_PRESETS.find((p) => p.id === scenarioPreset) || DIRECTOR_PRESETS[0];
+  const renderedShortsCount = shortsPlan?.shorts.filter((s) => !!s.rendered_path).length || 0;
 
   return (
     <div className="space-y-6">
@@ -342,48 +343,40 @@ export function AiDirectorStudio({
 
         {/* Outro CTA Setting */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-background/60 border border-border/70">
-          <label className="flex items-center gap-2 cursor-pointer">
+          <label className="flex items-center gap-2 cursor-pointer select-none">
             <input
               type="checkbox"
               checked={withOutro}
               onChange={(e) => onWithOutroChange(e.target.checked)}
               className="w-4 h-4 rounded accent-primary cursor-pointer"
             />
-            <div>
-              <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                <Bell className="w-3.5 h-3.5 text-amber-400" />
-                Like & Subscribe аутро (в кінці Shorts)
-              </span>
-              <p className="text-[10px] text-muted-foreground">
-                Картка заклику з переходом у чорний екран на останніх 2.8с
+            <div className="flex-1">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                  <Bell className="w-3.5 h-3.5 text-red-500" />
+                  🔴 Живі кнопки YouTube (Like & Subscribe)
+                </span>
+                {withOutro && (
+                  <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                    Увімкнено
+                  </span>
+                )}
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                Анімовані стікери YouTube у безпечній зоні знизу: плавна поява пілюль, потім тексту, пульсація та погойдування
               </p>
             </div>
           </label>
 
           {withOutro && (
-            <div className="flex items-center gap-2">
-              <select
-                value={outroStyle}
-                onChange={(e) => onOutroStyleChange(e.target.value)}
-                className="h-8 rounded-lg border border-border bg-background px-2 text-xs font-medium focus:ring-1 focus:ring-purple-500 outline-none cursor-pointer"
-              >
-                {OUTRO_STYLES.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.badge} {s.name}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={outroBg}
-                onChange={(e) => onOutroBgChange(e.target.value)}
-                className="h-8 rounded-lg border border-border bg-background px-2 text-xs font-medium focus:ring-1 focus:ring-purple-500 outline-none cursor-pointer"
-              >
-                {OUTRO_BG_MODES.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.label}
-                  </option>
-                ))}
-              </select>
+            <div className="flex items-center justify-between p-2 rounded-lg bg-background/80 border border-border/60">
+              <span className="text-[10px] text-muted-foreground font-medium">
+                📍 Безпечна зона знизу (H-h-200)
+              </span>
+              <div className="flex items-center gap-1.5 scale-90 origin-right">
+                <span className="px-2 py-0.5 rounded-full bg-white text-black font-black text-[10px] shadow-xs">👍 LIKE</span>
+                <span className="px-2 py-0.5 rounded-full bg-red-600 text-white font-black text-[10px] shadow-xs">▶ SUBSCRIBE</span>
+              </div>
             </div>
           )}
         </div>
@@ -429,26 +422,40 @@ export function AiDirectorStudio({
               </p>
             </div>
 
-            {shortsPlan.shorts.length > 1 && (
-              <Button
-                size="sm"
-                disabled={isBatchRendering}
-                onClick={onBatchRenderAll}
-                className="shrink-0 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-4 py-2 flex items-center gap-1.5 shadow cursor-pointer"
-              >
-                {isBatchRendering ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>Генерація...</span>
-                  </>
-                ) : (
-                  <>
-                    <Layers className="w-3.5 h-3.5" />
-                    <span>Створити всі ({shortsPlan.shorts.length})</span>
-                  </>
-                )}
-              </Button>
-            )}
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              {renderedShortsCount > 0 && (
+                <Button
+                  size="sm"
+                  onClick={() => setIsBatchScheduleOpen(true)}
+                  className="rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3.5 py-2 flex items-center gap-1.5 shadow-md transition active:scale-95 cursor-pointer"
+                  title="Запланувати всі готові Shorts на YouTube з індивідуальними датами та часом"
+                >
+                  <CalendarPlus className="w-3.5 h-3.5" />
+                  <span>Запланувати всі ({renderedShortsCount})</span>
+                </Button>
+              )}
+
+              {shortsPlan.shorts.length > 1 && (
+                <Button
+                  size="sm"
+                  disabled={isBatchRendering}
+                  onClick={onBatchRenderAll}
+                  className="rounded-full bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-3.5 py-2 flex items-center gap-1.5 shadow cursor-pointer"
+                >
+                  {isBatchRendering ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Генерація...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Layers className="w-3.5 h-3.5" />
+                      <span>Створити всі ({shortsPlan.shorts.length})</span>
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
           </div>
 
           {/* Batch Render Live Progress Banner */}
@@ -512,21 +519,32 @@ export function AiDirectorStudio({
 
                     {/* Multi-segment breakdown chips */}
                     {item.segments && item.segments.length > 1 && (
-                      <div className="p-2 rounded-lg bg-indigo-500/5 border border-indigo-500/15 space-y-1">
-                        <span className="text-[10px] font-semibold text-indigo-400 flex items-center gap-1">
-                          🎬 Склеєні сцени ({item.segments.length}):
-                        </span>
-                        <div className="flex flex-wrap gap-1.5">
+                      <div className="p-2.5 rounded-xl bg-indigo-500/5 border border-indigo-500/20 space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-indigo-400 flex items-center gap-1">
+                            🎬 Драматургія сцен ({item.segments.length}):
+                          </span>
+                          <span className="text-[9px] text-muted-foreground font-mono">
+                            Разом: {Math.round(item.duration_sec)}с
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                           {item.segments.map((seg) => (
-                            <span
+                            <div
                               key={seg.segment_index}
-                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-background/80 border border-border text-[10px] font-mono text-muted-foreground"
+                              className="flex items-center justify-between gap-1.5 px-2 py-1 rounded-md bg-background/80 border border-border text-[10px]"
                               title={seg.scene_description || seg.label}
                             >
-                              <strong className="text-foreground">#{seg.segment_index}</strong>
-                              <span>{formatTime(seg.start_sec)}-{formatTime(seg.end_sec)}</span>
-                              <span className="text-[9px] text-primary">({Math.round(seg.duration_sec)}с)</span>
-                            </span>
+                              <div className="flex items-center gap-1.5 truncate">
+                                <span className="font-semibold text-foreground truncate">
+                                  {seg.label || `Сцена ${seg.segment_index}`}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1 shrink-0 font-mono text-[10px] text-muted-foreground">
+                                <span>{formatTime(seg.start_sec)}-{formatTime(seg.end_sec)}</span>
+                                <span className="text-[9px] font-bold text-primary">({Math.round(seg.duration_sec)}с)</span>
+                              </div>
+                            </div>
                           ))}
                         </div>
                       </div>
@@ -660,7 +678,7 @@ export function AiDirectorStudio({
                         </button>
                         <button
                           type="button"
-                          onClick={() => onOpenDrawer(item.rendered_path!)}
+                          onClick={() => onOpenDrawer(item.rendered_path!, item)}
                           className="h-8 px-3 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1 transition cursor-pointer shadow-sm"
                         >
                           <CalendarPlus className="w-3.5 h-3.5" />
@@ -752,6 +770,17 @@ export function AiDirectorStudio({
             </div>
           )}
         </div>
+      )}
+
+      {/* Batch Schedule Modal */}
+      {shortsPlan && (
+        <BatchScheduleModal
+          isOpen={isBatchScheduleOpen}
+          onClose={() => setIsBatchScheduleOpen(false)}
+          shorts={shortsPlan.shorts}
+          detectedGame={timelineData?.detected_game}
+          shortsLanguage={shortsLanguage}
+        />
       )}
     </div>
   );
